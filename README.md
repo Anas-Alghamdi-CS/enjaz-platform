@@ -98,8 +98,8 @@ enjaz-platform/
 
 ## Developer
 
-**Student:** [Your Name]  
-**ID:** [Your Student ID]  
+**Student:** Anas Alghamdi
+**ID:** 444005852
 **Course:** AI4101 — Generative AI & Vibe Coding  
 **University:** Umm Al-Qura University
 

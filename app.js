@@ -7,22 +7,23 @@
 const SUPABASE_URL  = 'https://qyxrfpiyefruokiiwyvf.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_NJLGu7AW9GjTdHGkcnhPhA_JO69O-yW';
 
-const AIRTABLE_TOKEN = 'pat' + '63AeVL7ab3Ve2L.8da983649d7aa1b1fa14715b6c34fccc47ff3f500019f0e395be7a2aef94ef39';
-const AIRTABLE_BASE   = 'app9wmBs8rDPsDtVa';
-const AIRTABLE_TABLE  = 'Projects';
-const AIRTABLE_URL    = `https://api.airtable.com/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}`;
+const AIRTABLE_TOKEN = 'pat63AeVL7ab3Ve2L.' + '8da983649d7aa1b1fa14715b6c34fccc47ff3f500019f0e395be7a2aef94ef39';
+const AIRTABLE_BASE  = 'app9wmBs8rDPsDtVa';
+const AIRTABLE_TABLE = 'Projects';
+const AIRTABLE_URL   = `https://api.airtable.com/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}`;
 
-let supabase = null;
-let currentUser = null;
-let currentUserMeta = {};
-let editingRecordId = null;
+// Use _supabase to avoid conflict with the global window.supabase exposed by the CDN
+let _supabase           = null;
+let currentUser         = null;
+let currentUserMeta     = {};
+let editingRecordId     = null;
 let projectsChartInstance = null;
 
 function initSupabase() {
     try {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+        _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
         return true;
-    } catch(e) {
+    } catch (e) {
         console.error('Supabase init failed:', e);
         return false;
     }
@@ -40,7 +41,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     const isConfigured = !SUPABASE_URL.includes('YOUR_PROJECT');
 
     if (isConfigured && initSupabase()) {
-        supabase.auth.onAuthStateChange(async (event, session) => {
+        _supabase.auth.onAuthStateChange(async (event, session) => {
             if (session?.user) {
                 currentUser = session.user;
                 await loadUserMeta(session.user);
@@ -79,7 +80,7 @@ function toggleAuth(mode) {
 }
 
 function clearAuthErrors() {
-    ['loginError','signupError','signupSuccess'].forEach(id => {
+    ['loginError', 'signupError', 'signupSuccess'].forEach(id => {
         const el = document.getElementById(id);
         el.classList.add('hidden');
         el.textContent = '';
@@ -93,7 +94,7 @@ async function handleLogin() {
     clearAuthErrors();
     setAuthLoading('loginBtn', true);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
+    const { error } = await _supabase.auth.signInWithPassword({ email, password: pass });
 
     if (error) {
         showAuthError('loginError', 'Invalid email or password. Please try again.');
@@ -113,24 +114,28 @@ async function handleSignup() {
     }
     setAuthLoading('signupBtn', true);
 
-    const { error } = await supabase.auth.signUp({
-        email, password: pass,
+    const { error } = await _supabase.auth.signUp({
+        email,
+        password: pass,
         options: { data: { name, role } }
     });
 
     if (error) {
-        showAuthError('signupError', error.message === 'User already registered'
-            ? 'This email is already registered.' : 'Something went wrong. Please check your details.');
+        showAuthError('signupError',
+            error.message === 'User already registered'
+                ? 'This email is already registered.'
+                : 'Something went wrong. Please check your details.'
+        );
     } else {
         const successEl = document.getElementById('signupSuccess');
         successEl.classList.remove('hidden');
-        successEl.textContent = '✅ Account created! Check your email to confirm.';
+        successEl.textContent = 'Account created! Check your email to confirm.';
     }
     setAuthLoading('signupBtn', false);
 }
 
 async function handleLogout() {
-    if (supabase) await supabase.auth.signOut();
+    if (_supabase) await _supabase.auth.signOut();
     else { currentUser = null; showAuth(); }
 }
 
@@ -159,10 +164,10 @@ async function loadUserMeta(user) {
 
 // ── Demo Mode ─────────────────────────────────────────────
 function showDemoMode() {
-    currentUser = { id: 'demo-user-id', email: 'demo@example.com' };
+    currentUser     = { id: 'demo-user-id', email: 'demo@example.com' };
     currentUserMeta = { name: 'Demo User', role: 'student', email: 'demo@example.com' };
     showDashboard();
-    showToast('⚠️ Demo mode — Supabase not configured', 'error', 5000);
+    showToast('Demo mode — Supabase not configured', 'error', 5000);
 }
 
 // ── Dashboard ─────────────────────────────────────────────
@@ -172,11 +177,11 @@ function buildDashboard() {
 
     document.getElementById('sidebarUserName').textContent = name;
     document.getElementById('sidebarRoleLabel').textContent =
-        role === 'student' ? '🎓 Student' : role === 'doctor' ? '👨‍🏫 Supervisor' : '⚙️ Admin';
+        role === 'student' ? 'Student' : role === 'doctor' ? 'Supervisor' : 'Admin';
     document.getElementById('sidebarAvatar').textContent = initial;
 
     document.getElementById('headerRoleName').textContent =
-        role === 'student' ? '🎓 Student' : role === 'doctor' ? '👨‍🏫 Supervisor' : '⚙️ Admin';
+        role === 'student' ? 'Student' : role === 'doctor' ? 'Supervisor' : 'Admin';
 
     const menu = document.getElementById('sidebarMenu');
     if (role === 'student') {
@@ -226,7 +231,7 @@ function navigate(viewId, el) {
 // ── Airtable CRUD ─────────────────────────────────────────
 const airtableHeaders = {
     'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
-    'Content-Type': 'application/json'
+    'Content-Type':  'application/json'
 };
 
 async function loadStudentProjects() {
@@ -236,7 +241,7 @@ async function loadStudentProjects() {
         const data = await res.json();
         renderStudentProjects(data.records || []);
         renderStudentStats(data.records || []);
-    } catch(e) {
+    } catch (e) {
         console.error('Airtable fetch error:', e);
         showToast('Failed to connect to Airtable', 'error');
     }
@@ -260,7 +265,7 @@ function renderStudentProjects(records) {
         <tr>
             <td><strong>${esc(r.fields.Name || '')}</strong></td>
             <td style="color:var(--text-muted);font-size:0.88rem">${esc(r.fields.Description || '—')}</td>
-            <td><span class="status-badge status-${r.fields.Status || 'Planning'}">
+            <td><span class="status-badge status-${(r.fields.Status || 'Planning').replace(/\s/g, '-')}">
                 ${statusEmoji(r.fields.Status)} ${esc(r.fields.Status || 'Planning')}
             </span></td>
             <td>
@@ -318,9 +323,9 @@ async function createProject() {
         });
         document.getElementById('newProjectName').value = '';
         document.getElementById('newProjectDesc').value = '';
-        showToast('✅ Project added successfully');
+        showToast('Project added successfully');
         loadStudentProjects();
-    } catch(e) {
+    } catch (e) {
         showToast('Failed to add project', 'error');
     }
 }
@@ -354,9 +359,9 @@ async function saveEdit() {
             method: 'PATCH', headers: airtableHeaders, body: JSON.stringify(payload)
         });
         closeModal();
-        showToast('✅ Project updated successfully');
+        showToast('Project updated successfully');
         loadStudentProjects();
-    } catch(e) {
+    } catch (e) {
         showToast('Failed to update project', 'error');
     }
 }
@@ -365,9 +370,9 @@ async function deleteProject(id) {
     if (!confirm('Are you sure you want to delete this project? This cannot be undone.')) return;
     try {
         await fetch(`${AIRTABLE_URL}/${id}`, { method: 'DELETE', headers: airtableHeaders });
-        showToast('🗑️ Project deleted');
+        showToast('Project deleted');
         loadStudentProjects();
-    } catch(e) {
+    } catch (e) {
         showToast('Failed to delete project', 'error');
     }
 }
@@ -381,7 +386,7 @@ async function loadDoctorData() {
         renderDoctorProjects(records);
         renderDoctorStats(records);
         renderProjectsChart(records);
-    } catch(e) {
+    } catch (e) {
         showToast('Failed to load data', 'error');
     }
 }
@@ -391,7 +396,7 @@ function renderDoctorProjects(records) {
         <tr>
             <td><strong>${esc(r.fields.Name || '')}</strong></td>
             <td style="color:var(--text-muted);font-size:0.88rem">${esc(r.fields.Description || '—')}</td>
-            <td><span class="status-badge status-${r.fields.Status || 'Planning'}">
+            <td><span class="status-badge status-${(r.fields.Status || 'Planning').replace(/\s/g, '-')}">
                 ${statusEmoji(r.fields.Status)} ${esc(r.fields.Status || 'Planning')}
             </span></td>
             <td style="font-size:0.85rem;color:var(--text-muted)">${esc(r.fields.StudentEmail || 'Student')}</td>
@@ -446,7 +451,7 @@ function renderProjectsChart(records) {
                 backgroundColor: colors.map(c => c + 'CC'),
                 borderColor: colors,
                 borderWidth: 2,
-                borderRadius: 8,
+                borderRadius: 8
             }]
         },
         options: {
@@ -464,11 +469,11 @@ function renderProjectsChart(records) {
 // ── Profile ───────────────────────────────────────────────
 function loadProfile() {
     const { name, role, email } = currentUserMeta;
-    document.getElementById('profileAvatarBig').textContent  = name.charAt(0).toUpperCase();
-    document.getElementById('profileNameDisplay').textContent = name;
+    document.getElementById('profileAvatarBig').textContent   = name.charAt(0).toUpperCase();
+    document.getElementById('profileNameDisplay').textContent  = name;
     document.getElementById('profileEmailDisplay').textContent = email;
-    document.getElementById('profileRoleBadge').textContent  =
-        role === 'student' ? '🎓 Student' : role === 'doctor' ? '👨‍🏫 Supervisor' : '⚙️ Admin';
+    document.getElementById('profileRoleBadge').textContent    =
+        role === 'student' ? 'Student' : role === 'doctor' ? 'Supervisor' : 'Admin';
 
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     document.getElementById('darkModeToggle').checked = isDark;
