@@ -11,6 +11,30 @@
 
 ---
 
+## Demo Credentials
+
+Use these accounts to explore the platform — no sign-up required.
+
+### Student Account
+| Field | Value |
+|-------|-------|
+| **Email** | `ahmed.qahtani@enjaz.demo` |
+| **Password** | `Enjaz@2025` |
+| **Role** | 🎓 Student |
+| **Features** | Add / Edit / Delete own projects, view stats |
+
+### Supervisor Account
+| Field | Value |
+|-------|-------|
+| **Email** | `dr.farsi@enjaz.demo` |
+| **Password** | `Enjaz@2025` |
+| **Role** | 👨‍🏫 Supervisor |
+| **Features** | View all projects, analytics chart, project distribution |
+
+> All 20 student accounts share the password `Enjaz@2025`. All 4 supervisor accounts share the same password.
+
+---
+
 ## Overview
 
 **Enjaz** is a professional student project management platform built as an evolutionary project across three assignments in **AI4101 — Generative AI & Vibe Coding**.
@@ -27,7 +51,7 @@
 
 - 🔐 **Authentication** — Sign up, sign in, and sign out via Supabase Auth
 - 📋 **Full CRUD** — Add, view, edit, and delete projects stored in Airtable
-- 📊 **Analytics Chart** — Project distribution by stage (powered by Chart.js)
+- 📊 **Analytics Chart** — Project distribution by stage (Chart.js)
 - 🌙 **Dark Mode** — Persistent theme preference via localStorage
 - 📱 **Responsive Design** — Works on mobile and desktop
 - 👥 **Role-based UI** — Student view and Supervisor view
@@ -40,7 +64,7 @@
 | Layer | Technology |
 |-------|-----------|
 | Frontend | HTML5 + Vanilla CSS + Vanilla JavaScript |
-| Authentication | Supabase (loaded via CDN) |
+| Authentication | Supabase (CDN) |
 | Database | Airtable REST API |
 | Charts | Chart.js |
 | Icons | Font Awesome 6 |
@@ -98,8 +122,7 @@ enjaz-platform/
 
 ## Developer
 
-**Student:** Anas Alghamdi
-**ID:** 444005852
+**Student:** Anas Alghamdi  
 **Course:** AI4101 — Generative AI & Vibe Coding  
 **University:** Umm Al-Qura University
 
