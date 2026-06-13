@@ -32,17 +32,35 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('splashScreen').classList.add('hidden');
 
     if (initSupabase()) {
+        // فحص الجلسة بشكل صريح ومباشر حتى لا يعلق
+        const { data: { session } } = await _supabase.auth.getSession();
+        
+        if (session?.user) {
+            currentUser = session.user;
+            await loadUserMeta(session.user);
+            showDashboard();
+        } else {
+            currentUser     = null;
+            currentUserMeta = {};
+            showAuth();
+        }
+
         _supabase.auth.onAuthStateChange(async (event, session) => {
-            if (session?.user) {
-                currentUser = session.user;
-                await loadUserMeta(session.user);
-                showDashboard();
-            } else {
-                currentUser     = null;
-                currentUserMeta = {};
-                showAuth();
+            if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+                if (session?.user) {
+                    currentUser = session.user;
+                    await loadUserMeta(session.user);
+                    showDashboard();
+                } else {
+                    currentUser     = null;
+                    currentUserMeta = {};
+                    showAuth();
+                }
             }
         });
+    } else {
+        showAuth(); // أظهر شاشة الدخول في كل الأحوال لتجنب الشاشة الفارغة
+        showAuthError('loginError', 'Failed to connect to database.');
     }
 });
 
