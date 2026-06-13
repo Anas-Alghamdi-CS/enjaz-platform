@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enjaz Platform — Seed Tool</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #0f172a; color: #f1f5f9;
+            min-height: 100vh; padding: 40px 20px;
+        }
+        .container { max-width: 860px; margin: 0 auto; }
+        h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 6px; color: #a5b4fc; }
+        .subtitle { color: #64748b; margin-bottom: 32px; font-size: 0.95rem; }
+
+        .warning {
+            background: rgba(234,179,8,0.12); border: 1px solid rgba(234,179,8,0.3);
+            color: #fde047; border-radius: 12px; padding: 16px 20px;
+            margin-bottom: 28px; font-size: 0.9rem; line-height: 1.7;
+        }
+        .warning strong { display: block; margin-bottom: 6px; font-size: 1rem; }
+
+        .stats-row {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 14px; margin-bottom: 28px;
+        }
+        .stat {
+            background: #1e293b; border: 1px solid #2d3748;
+            border-radius: 12px; padding: 16px; text-align: center;
+        }
+        .stat-num { font-size: 2rem; font-weight: 800; color: #6366f1; }
+        .stat-label { font-size: 0.78rem; color: #64748b; margin-top: 4px; }
+
+        .btn-run {
+            width: 100%; padding: 16px;
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: white; border: none; border-radius: 12px;
+            font-size: 1.1rem; font-weight: 700; cursor: pointer;
+            margin-bottom: 24px; transition: all 0.2s;
+        }
+        .btn-run:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(99,102,241,0.4); }
+        .btn-run:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .log-box {
+            background: #1e293b; border: 1px solid #2d3748;
+            border-radius: 12px; padding: 20px;
+            height: 380px; overflow-y: auto;
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            font-size: 0.82rem; line-height: 1.8;
+        }
+        .log-box:empty::before { content: 'Click "Run Seed" to start...'; color: #475569; }
+
+        .log-ok   { color: #4ade80; }
+        .log-err  { color: #f87171; }
+        .log-info { color: #93c5fd; }
+        .log-head { color: #fbbf24; font-weight: bold; }
+        .log-done { color: #a78bfa; font-weight: bold; font-size: 0.95rem; }
+
+        .credentials {
+            background: #1e293b; border: 1px solid #334155;
+            border-radius: 12px; padding: 24px; margin-top: 24px;
+            display: none;
+        }
+        .credentials h2 { color: #a5b4fc; margin-bottom: 16px; font-size: 1.1rem; }
+        .cred-table { width: 100%; border-collapse: collapse; }
+        .cred-table th {
+            text-align: left; padding: 10px 14px;
+            border-bottom: 1px solid #334155; color: #64748b;
+            font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .cred-table td { padding: 10px 14px; font-size: 0.88rem; border-bottom: 1px solid #1e293b; }
+        .cred-table tr:last-child td { border-bottom: none; }
+        .role-student { color: #60a5fa; font-weight: 700; }
+        .role-doctor  { color: #4ade80; font-weight: 700; }
+        .badge {
+            display: inline-block; padding: 2px 10px;
+            border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+        }
+        .badge-student { background: rgba(99,102,241,0.2); color: #a5b4fc; }
+        .badge-doctor  { background: rgba(16,185,129,0.2); color: #4ade80; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🌱 Enjaz Platform — Seed Tool</h1>
+    <p class="subtitle">Creates 20 student accounts + 4 doctor accounts + 30 sample projects in Airtable</p>
+
+    <div class="warning">
+        <strong>⚠️ Before Running — Disable Email Confirmation in Supabase</strong>
+        Go to: <strong>Supabase Dashboard → Authentication → Email → Confirm email → OFF</strong><br>
+        Otherwise accounts will be created but unconfirmed and login will fail.
+    </div>
+
+    <div class="stats-row">
+        <div class="stat"><div class="stat-num" id="countStudents">20</div><div class="stat-label">Students</div></div>
+        <div class="stat"><div class="stat-num" id="countDoctors">4</div><div class="stat-label">Supervisors</div></div>
+        <div class="stat"><div class="stat-num" id="countProjects">30</div><div class="stat-label">Projects</div></div>
+        <div class="stat"><div class="stat-num" id="countDone" style="color:#4ade80">0</div><div class="stat-label">Created</div></div>
+    </div>
+
+    <button class="btn-run" id="runBtn" onclick="runSeed()">🚀 Run Seed</button>
+
+    <div class="log-box" id="logBox"></div>
+
+    <div class="credentials" id="credBox">
+        <h2>🔑 Demo Credentials — Add to README</h2>
+        <table class="cred-table">
+            <thead>
+                <tr><th>Role</th><th>Email</th><th>Password</th><th>Name</th></tr>
+            </thead>
+            <tbody id="credBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// ── Config ───────────────────────────────────────────────
+const SUPABASE_URL  = 'https://qyxrfpiyefruokiiwyvf.supabase.co';
+const SUPABASE_ANON = 'sb_publishable_NJLGu7AW9GjTdHGkcnhPhA_JO69O-yW';
+const AIRTABLE_TOKEN = 'pat63AeVL7ab3Ve2L.' + '8da983649d7aa1b1fa14715b6c34fccc47ff3f500019f0e395be7a2aef94ef39';
+const AIRTABLE_BASE  = 'app9wmBs8rDPsDtVa';
+const AIRTABLE_TABLE = 'Projects';
+const AIRTABLE_URL   = `https://api.airtable.com/v0/${AIRTABLE_BASE}/${AIRTABLE_TABLE}`;
+const DEMO_PASSWORD  = 'Enjaz@2025';
+
+// ── Seed Data ────────────────────────────────────────────
+const STUDENTS = [
+    { name: 'Ahmed Al-Qahtani',    email: 'ahmed.qahtani@enjaz.demo' },
+    { name: 'Sara Al-Dosari',      email: 'sara.dosari@enjaz.demo' },
+    { name: 'Omar Al-Ghamdi',      email: 'omar.ghamdi@enjaz.demo' },
+    { name: 'Lina Al-Harbi',       email: 'lina.harbi@enjaz.demo' },
+    { name: 'Khalid Al-Shehri',    email: 'khalid.shehri@enjaz.demo' },
+    { name: 'Nora Al-Otaibi',      email: 'nora.otaibi@enjaz.demo' },
+    { name: 'Faisal Al-Zahrani',   email: 'faisal.zahrani@enjaz.demo' },
+    { name: 'Reem Al-Anzi',        email: 'reem.anzi@enjaz.demo' },
+    { name: 'Turki Al-Mutairi',    email: 'turki.mutairi@enjaz.demo' },
+    { name: 'Hessa Al-Subaie',     email: 'hessa.subaie@enjaz.demo' },
+    { name: 'Abdulrahman Al-Saud', email: 'abdulrahman.saud@enjaz.demo' },
+    { name: 'Maha Al-Rashidi',     email: 'maha.rashidi@enjaz.demo' },
+    { name: 'Nawaf Al-Ajmi',       email: 'nawaf.ajmi@enjaz.demo' },
+    { name: 'Dana Al-Bishi',       email: 'dana.bishi@enjaz.demo' },
+    { name: 'Rayan Al-Habsi',      email: 'rayan.habsi@enjaz.demo' },
+    { name: 'Wafa Al-Malki',       email: 'wafa.malki@enjaz.demo' },
+    { name: 'Salman Al-Barrak',    email: 'salman.barrak@enjaz.demo' },
+    { name: 'Aisha Al-Hamdan',     email: 'aisha.hamdan@enjaz.demo' },
+    { name: 'Majed Al-Ruwaili',    email: 'majed.ruwaili@enjaz.demo' },
+    { name: 'Rana Al-Juaid',       email: 'rana.juaid@enjaz.demo' },
+];
+
+const DOCTORS = [
+    { name: 'Dr. Khaled Al-Farsi',   email: 'dr.farsi@enjaz.demo' },
+    { name: 'Dr. Mona Al-Senan',     email: 'dr.senan@enjaz.demo' },
+    { name: 'Dr. Waleed Al-Amri',    email: 'dr.amri@enjaz.demo' },
+    { name: 'Dr. Hanan Al-Thubaiti', email: 'dr.thubaiti@enjaz.demo' },
+];
+
+const PROJECTS = [
+    { name: 'AI-Powered Attendance System',       desc: 'Automates student attendance using facial recognition and machine learning.',             status: 'Completed',   student: 0 },
+    { name: 'Smart Campus Navigation App',        desc: 'Mobile app that guides students around campus using indoor AR navigation.',               status: 'In Progress', student: 1 },
+    { name: 'E-Learning Platform',                desc: 'Full-featured LMS with video lectures, quizzes, and progress tracking.',                  status: 'Review',      student: 2 },
+    { name: 'Healthcare Chatbot',                 desc: 'Conversational AI assistant that answers basic medical queries using NLP.',                status: 'Planning',    student: 3 },
+    { name: 'Inventory Management System',        desc: 'Cloud-based system for tracking warehouse stock levels in real time.',                     status: 'Completed',   student: 4 },
+    { name: 'Food Delivery App',                  desc: 'End-to-end food ordering platform with live order tracking and payment integration.',     status: 'In Progress', student: 5 },
+    { name: 'Blockchain Voting System',           desc: 'Secure, transparent voting application built on Ethereum smart contracts.',               status: 'Design',      student: 6 },
+    { name: 'Fitness Tracker Dashboard',          desc: 'Web dashboard that visualizes workout data synced from wearable devices.',                status: 'Completed',   student: 7 },
+    { name: 'Social Media Analytics Tool',        desc: 'Aggregates and analyzes social media metrics across multiple platforms.',                  status: 'In Progress', student: 8 },
+    { name: 'AR Interior Design App',             desc: 'Augmented reality app that lets users preview furniture placement in their rooms.',       status: 'Planning',    student: 9 },
+    { name: 'Real Estate Price Predictor',        desc: 'Machine learning model that predicts property prices based on location and features.',    status: 'Review',      student: 10 },
+    { name: 'Quran Memorization App',             desc: 'Gamified app for memorizing Quran verses with spaced repetition algorithms.',             status: 'Completed',   student: 11 },
+    { name: 'Smart Home IoT Dashboard',           desc: 'Centralized control panel for IoT devices using MQTT and a real-time React dashboard.',  status: 'In Progress', student: 12 },
+    { name: 'Job Matching Platform',              desc: 'AI-powered recruitment platform that matches candidates with job listings.',              status: 'Design',      student: 13 },
+    { name: 'Language Learning Bot',              desc: 'Telegram bot that teaches vocabulary and grammar through daily interactive exercises.',   status: 'Completed',   student: 14 },
+    { name: 'Student Project Showcase',           desc: 'Portfolio website generator for university students to display their work.',              status: 'In Progress', student: 15 },
+    { name: 'Online Pharmacy System',             desc: 'Full CRUD pharmacy management system with prescription verification workflow.',           status: 'Review',      student: 16 },
+    { name: 'Traffic Congestion Predictor',       desc: 'ML model predicting rush-hour congestion using historical GPS and weather data.',        status: 'Planning',    student: 17 },
+    { name: 'University Course Recommender',      desc: 'Recommends elective courses based on student interests, GPA, and career goals.',         status: 'Design',      student: 18 },
+    { name: 'Water Consumption Monitor',          desc: 'IoT system for monitoring and reducing household water usage with SMS alerts.',           status: 'In Progress', student: 19 },
+    { name: 'Mental Health Screening Tool',       desc: 'Anonymous web app for self-assessment of stress and anxiety with resource referrals.',   status: 'Completed',   student: 0 },
+    { name: 'Event Management System',            desc: 'Full-stack system for booking venues, managing attendees, and sending invitations.',     status: 'Review',      student: 1 },
+    { name: 'AI Code Review Assistant',           desc: 'GitHub bot that reviews pull requests and suggests improvements using GPT-4.',           status: 'Planning',    student: 2 },
+    { name: 'Digital Library System',             desc: 'Library management system with barcode scanning and e-book lending.',                    status: 'Completed',   student: 3 },
+    { name: 'Expense Tracker App',                desc: 'Mobile-first personal finance app with category-based expense analytics.',               status: 'In Progress', student: 4 },
+    { name: 'Resume Builder Platform',            desc: 'Drag-and-drop resume builder with ATS optimization and PDF export.',                     status: 'Completed',   student: 5 },
+    { name: 'Pharmacy Stock Alert System',        desc: 'Sends automated WhatsApp alerts when medication stock drops below threshold.',           status: 'Design',      student: 6 },
+    { name: 'Virtual Lab Simulator',              desc: 'Browser-based chemistry lab simulator for remote learning environments.',                status: 'Review',      student: 7 },
+    { name: 'Prayer Time Reminder App',           desc: 'Cross-platform app with accurate Adhan times, Qibla direction, and notifications.',      status: 'Completed',   student: 8 },
+    { name: 'Car Rental Management System',       desc: 'Full-stack system for managing vehicle fleet, bookings, and customer accounts.',         status: 'In Progress', student: 9 },
+];
+
+// ── Helpers ──────────────────────────────────────────────
+let doneCount = 0;
+
+function log(msg, cls = '') {
+    const box = document.getElementById('logBox');
+    const line = document.createElement('div');
+    if (cls) line.className = cls;
+    line.textContent = msg;
+    box.appendChild(line);
+    box.scrollTop = box.scrollHeight;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function bumpDone() {
+    doneCount++;
+    document.getElementById('countDone').textContent = doneCount;
+}
+
+// ── Main Seed ────────────────────────────────────────────
+async function runSeed() {
+    const btn = document.getElementById('runBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Seeding...';
+    document.getElementById('logBox').innerHTML = '';
+    doneCount = 0;
+    document.getElementById('countDone').textContent = '0';
+
+    const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    // ── 1. Create Student Accounts
+    log('━━━ Creating Student Accounts (20) ━━━', 'log-head');
+    const createdStudents = [];
+
+    for (const s of STUDENTS) {
+        try {
+            const { data, error } = await _sb.auth.signUp({
+                email: s.email,
+                password: DEMO_PASSWORD,
+                options: { data: { name: s.name, role: 'student' } }
+            });
+            if (error) {
+                log(`  ✗ ${s.name} — ${error.message}`, 'log-err');
+            } else {
+                log(`  ✓ ${s.name} (${s.email})`, 'log-ok');
+                createdStudents.push({ ...s, uid: data.user?.id });
+                bumpDone();
+            }
+        } catch (e) {
+            log(`  ✗ ${s.name} — ${e.message}`, 'log-err');
+        }
+        await sleep(350); // rate limit buffer
+    }
+
+    // ── 2. Create Doctor Accounts
+    log('', '');
+    log('━━━ Creating Supervisor Accounts (4) ━━━', 'log-head');
+
+    for (const d of DOCTORS) {
+        try {
+            const { data, error } = await _sb.auth.signUp({
+                email: d.email,
+                password: DEMO_PASSWORD,
+                options: { data: { name: d.name, role: 'doctor' } }
+            });
+            if (error) {
+                log(`  ✗ ${d.name} — ${error.message}`, 'log-err');
+            } else {
+                log(`  ✓ ${d.name} (${d.email})`, 'log-ok');
+                bumpDone();
+            }
+        } catch (e) {
+            log(`  ✗ ${d.name} — ${e.message}`, 'log-err');
+        }
+        await sleep(350);
+    }
+
+    // ── 3. Create Airtable Projects
+    log('', '');
+    log('━━━ Creating Airtable Projects (30) ━━━', 'log-head');
+
+    const headers = {
+        'Authorization': `Bearer ${AIRTABLE_TOKEN}`,
+        'Content-Type': 'application/json'
+    };
+
+    // Airtable allows up to 10 records per POST
+    const chunks = [];
+    for (let i = 0; i < PROJECTS.length; i += 10) chunks.push(PROJECTS.slice(i, i + 10));
+
+    for (const chunk of chunks) {
+        const records = chunk.map(p => ({
+            fields: {
+                Name: p.name,
+                Description: p.desc,
+                Status: p.status,
+                StudentEmail: STUDENTS[p.student].email
+            }
+        }));
+
+        try {
+            const res  = await fetch(AIRTABLE_URL, {
+                method: 'POST', headers,
+                body: JSON.stringify({ records })
+            });
+            const json = await res.json();
+            if (json.error) {
+                log(`  ✗ Airtable batch error: ${json.error}`, 'log-err');
+            } else {
+                json.records.forEach(r => {
+                    log(`  ✓ Project: "${r.fields.Name}" [${r.fields.Status}]`, 'log-ok');
+                    bumpDone();
+                });
+            }
+        } catch (e) {
+            log(`  ✗ Airtable error: ${e.message}`, 'log-err');
+        }
+        await sleep(500);
+    }
+
+    // ── Done
+    log('', '');
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'log-head');
+    log(`✅ Seed complete! ${doneCount} items created.`, 'log-done');
+    log('', '');
+    log('Demo credentials (copy to README):', 'log-info');
+    log(`  Student  → ahmed.qahtani@enjaz.demo  /  ${DEMO_PASSWORD}`, 'log-info');
+    log(`  Supervisor → dr.farsi@enjaz.demo  /  ${DEMO_PASSWORD}`, 'log-info');
+
+    btn.textContent = '✅ Seed Complete';
+
+    // Show credentials table
+    const credBody = document.getElementById('credBody');
+    const demos = [
+        { role: 'student', name: 'Ahmed Al-Qahtani',  email: 'ahmed.qahtani@enjaz.demo' },
+        { role: 'student', name: 'Sara Al-Dosari',    email: 'sara.dosari@enjaz.demo' },
+        { role: 'doctor',  name: 'Dr. Khaled Al-Farsi', email: 'dr.farsi@enjaz.demo' },
+        { role: 'doctor',  name: 'Dr. Mona Al-Senan',   email: 'dr.senan@enjaz.demo' },
+    ];
+    credBody.innerHTML = demos.map(d => `
+        <tr>
+            <td><span class="badge badge-${d.role}">${d.role === 'student' ? '🎓 Student' : '👨‍🏫 Supervisor'}</span></td>
+            <td style="font-family:monospace;color:#93c5fd">${d.email}</td>
+            <td style="font-family:monospace;color:#fde047">${DEMO_PASSWORD}</td>
+            <td>${d.name}</td>
+        </tr>
+    `).join('');
+    document.getElementById('credBox').style.display = 'block';
+}
+</script>
+</body>
+</html>

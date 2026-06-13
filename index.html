@@ -1,327 +1,377 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl" data-theme="light">
+<html lang="en" data-theme="light">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enjaz Platform | Student Projects</title>
-    <meta name="description" content="Enjaz — A professional student project management platform with live database and authentication.">
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enjaz — Student Projects Platform</title>
+  <meta name="description" content="Enjaz is a collaborative academic project management platform connecting students, supervisors, and administrators." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-<!-- Splash Screen -->
-<div id="splashScreen" class="splash-screen">
-    <div class="splash-content">
-        <div class="splash-logo">
-            <i class="fas fa-rocket"></i>
-        </div>
-        <h1 class="splash-title">منصة إنجـاز</h1>
-        <p class="splash-subtitle">Student Projects Platform</p>
-        <div class="splash-loader">
-            <div class="loader-bar"></div>
-        </div>
-    </div>
+<!-- ═══════════════════════════════════════════════
+     SPLASH SCREEN
+════════════════════════════════════════════════ -->
+<div id="splashScreen" class="splash">
+  <div class="splash-content">
+    <div class="splash-icon">🎓</div>
+    <h1 class="splash-title">Enjaz</h1>
+    <p class="splash-subtitle">Student Projects Platform</p>
+    <div class="splash-bar"><div class="splash-fill"></div></div>
+  </div>
 </div>
 
-<!-- Auth Screen -->
-<div id="authScreen" class="auth-screen hidden">
-    <div class="auth-bg-shapes">
-        <div class="shape shape-1"></div>
-        <div class="shape shape-2"></div>
-        <div class="shape shape-3"></div>
+<!-- ═══════════════════════════════════════════════
+     AUTH SCREEN
+════════════════════════════════════════════════ -->
+<div id="authScreen" class="auth-overlay hidden">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="auth-logo-icon">🎓</span>
+      <h2>Enjaz Platform</h2>
+      <p>Academic Project Management</p>
     </div>
-    <div class="auth-container">
-        <div class="auth-brand">
-            <div class="brand-icon"><i class="fas fa-rocket"></i></div>
-            <h2>منصة إنجـاز</h2>
-            <p>نظام إدارة مشاريع الطلاب</p>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="toggleAuth('login')">Sign In</button>
+      <button class="auth-tab" onclick="toggleAuth('signup')">Create Account</button>
+    </div>
+
+    <!-- Login Form -->
+    <div id="loginForm" class="auth-form active-form">
+      <div class="form-group">
+        <label for="loginEmail">Email Address</label>
+        <div class="input-wrap">
+          <i class="fas fa-envelope"></i>
+          <input id="loginEmail" type="email" placeholder="you@example.com"
+                 onkeydown="if(event.key==='Enter')handleLogin()" autocomplete="email" />
         </div>
-
-        <!-- Login Form -->
-        <form id="loginForm" class="auth-form active-form" onsubmit="event.preventDefault(); handleLogin();">
-            <h3 class="form-title">تسجيل الدخول</h3>
-            <div class="input-group">
-                <i class="fas fa-envelope input-icon"></i>
-                <input type="email" id="loginEmail" placeholder="البريد الإلكتروني" required autocomplete="email">
-            </div>
-            <div class="input-group">
-                <i class="fas fa-lock input-icon"></i>
-                <input type="password" id="loginPassword" placeholder="كلمة المرور" required>
-            </div>
-            <div id="loginError" class="error-banner hidden"></div>
-            <button type="submit" class="btn-auth" id="loginBtn">
-                <span>دخول</span>
-                <i class="fas fa-arrow-left"></i>
-            </button>
-            <p class="toggle-hint">ليس لديك حساب؟ <span onclick="toggleAuth('signup')">سجّل الآن</span></p>
-        </form>
-
-        <!-- Signup Form -->
-        <form id="signupForm" class="auth-form" onsubmit="event.preventDefault(); handleSignup();">
-            <h3 class="form-title">إنشاء حساب جديد</h3>
-            <div class="input-group">
-                <i class="fas fa-user input-icon"></i>
-                <input type="text" id="signupName" placeholder="الاسم الكامل" required>
-            </div>
-            <div class="input-group">
-                <i class="fas fa-envelope input-icon"></i>
-                <input type="email" id="signupEmail" placeholder="البريد الإلكتروني" required>
-            </div>
-            <div class="input-group">
-                <i class="fas fa-lock input-icon"></i>
-                <input type="password" id="signupPassword" placeholder="كلمة المرور (6 خانات+)" required>
-            </div>
-            <div class="input-group">
-                <i class="fas fa-id-badge input-icon"></i>
-                <select id="signupRole">
-                    <option value="student">🎓 طالب — إدارة مشاريعي</option>
-                    <option value="doctor">👨‍🏫 دكتور — الإشراف والتقييم</option>
-                </select>
-            </div>
-            <div id="signupError" class="error-banner hidden"></div>
-            <div id="signupSuccess" class="success-banner hidden"></div>
-            <button type="submit" class="btn-auth" id="signupBtn">
-                <span>إنشاء الحساب</span>
-                <i class="fas fa-user-plus"></i>
-            </button>
-            <p class="toggle-hint">لديك حساب؟ <span onclick="toggleAuth('login')">سجّل دخولك</span></p>
-        </form>
+      </div>
+      <div class="form-group">
+        <label for="loginPassword">Password</label>
+        <div class="input-wrap">
+          <i class="fas fa-lock"></i>
+          <input id="loginPassword" type="password" placeholder="Your password"
+                 onkeydown="if(event.key==='Enter')handleLogin()" autocomplete="current-password" />
+        </div>
+      </div>
+      <p id="loginError" class="auth-error hidden"></p>
+      <button id="loginBtn" class="btn-primary" onclick="handleLogin()">
+        <span>Sign In</span><i class="fas fa-arrow-right"></i>
+      </button>
     </div>
+
+    <!-- Signup Form -->
+    <div id="signupForm" class="auth-form">
+      <div class="form-group">
+        <label for="signupName">Full Name</label>
+        <div class="input-wrap">
+          <i class="fas fa-user"></i>
+          <input id="signupName" type="text" placeholder="Your full name" autocomplete="name" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="signupEmail">Email Address</label>
+        <div class="input-wrap">
+          <i class="fas fa-envelope"></i>
+          <input id="signupEmail" type="email" placeholder="you@example.com" autocomplete="email" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="signupPassword">Password</label>
+        <div class="input-wrap">
+          <i class="fas fa-lock"></i>
+          <input id="signupPassword" type="password" placeholder="Min. 6 characters" autocomplete="new-password" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="signupRole">I am a…</label>
+        <div class="input-wrap">
+          <i class="fas fa-id-badge"></i>
+          <select id="signupRole">
+            <option value="student">Student</option>
+            <option value="doctor">Supervisor / Doctor</option>
+          </select>
+        </div>
+      </div>
+      <p id="signupError"   class="auth-error hidden"></p>
+      <p id="signupSuccess" class="auth-success hidden"></p>
+      <button id="signupBtn" class="btn-primary" onclick="handleSignup()">
+        <span>Create Account</span><i class="fas fa-user-plus"></i>
+      </button>
+    </div>
+  </div>
 </div>
 
-<!-- Dashboard -->
-<div id="dashboardScreen" class="dashboard-screen hidden">
+<!-- ═══════════════════════════════════════════════
+     DASHBOARD
+════════════════════════════════════════════════ -->
+<div id="dashboardScreen" class="dashboard-shell hidden">
 
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-logo">
-                <i class="fas fa-rocket"></i>
-                <span>إنجـاز</span>
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-icon">🎓</span>
+      <span class="brand-text">Enjaz</span>
+    </div>
+    <div class="sidebar-user">
+      <div id="sidebarAvatar" class="sidebar-avatar">A</div>
+      <div class="sidebar-user-info">
+        <p id="sidebarUserName" class="sidebar-name">Loading…</p>
+        <p id="sidebarRoleLabel" class="sidebar-role">—</p>
+      </div>
+    </div>
+    <ul id="sidebarMenu" class="sidebar-menu"></ul>
+    <button class="sidebar-logout" onclick="handleLogout()">
+      <i class="fas fa-sign-out-alt"></i><span>Sign Out</span>
+    </button>
+  </aside>
+
+  <!-- MAIN AREA -->
+  <div class="main-area">
+
+    <!-- TOP HEADER -->
+    <header class="top-header">
+      <div class="header-left">
+        <button id="sidebarToggleBtn" class="icon-btn" onclick="toggleSidebar()" title="Toggle sidebar">
+          <i class="fas fa-bars"></i>
+        </button>
+        <h1 id="pageTitle" class="page-title">Dashboard</h1>
+      </div>
+      <div class="header-right">
+        <div class="notif-wrap">
+          <button id="notifBtn" class="icon-btn" onclick="toggleNotifications()" title="Notifications">
+            <i class="fas fa-bell"></i>
+            <span id="notifBadge" class="notif-badge hidden">0</span>
+          </button>
+          <!-- Notifications Panel -->
+          <div id="notifPanel" class="notif-panel hidden">
+            <div class="notif-header">
+              <h3><i class="fas fa-bell"></i> Notifications</h3>
             </div>
-            <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebarToggle">
-                <i class="fas fa-bars"></i>
+            <div id="notifList" class="notif-list"></div>
+          </div>
+        </div>
+        <button id="themeToggle" class="icon-btn" onclick="toggleTheme()" title="Toggle theme">
+          <i class="fas fa-moon"></i>
+        </button>
+        <div class="header-user-chip">
+          <span id="headerRoleName">—</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- VIEW SECTIONS -->
+    <main class="content-area">
+
+      <!-- ─── STUDENT VIEW ─────────────────────── -->
+      <section id="view-student" class="view-section hidden">
+        <!-- Submit Form -->
+        <div class="card submit-card">
+          <div class="card-header">
+            <i class="fas fa-plus-circle"></i>
+            <h2>Submit a New Project</h2>
+          </div>
+          <div class="submit-grid">
+            <div class="form-group">
+              <label for="projectTitle">Project Title <span class="req">*</span></label>
+              <input id="projectTitle" type="text" placeholder="e.g. AI-Powered Scheduling System" />
+            </div>
+            <div class="form-group">
+              <label for="projectDoctorPicker">Supervisor <span class="req">*</span></label>
+              <select id="projectDoctorPicker">
+                <option value="">Loading supervisors…</option>
+              </select>
+            </div>
+            <div class="form-group full-width">
+              <label for="projectDesc">Description</label>
+              <textarea id="projectDesc" rows="3" placeholder="Briefly describe your project goals and methodology…"></textarea>
+            </div>
+          </div>
+          <button id="submitProjectBtn" class="btn-primary" onclick="submitProject()">
+            <i class="fas fa-paper-plane"></i><span>Submit Project</span>
+          </button>
+        </div>
+
+        <!-- Projects List -->
+        <div class="section-header">
+          <h2><i class="fas fa-folder-open"></i> My Projects</h2>
+        </div>
+        <div id="studentProjectsList" class="projects-grid"></div>
+      </section>
+
+      <!-- ─── DOCTOR VIEW ──────────────────────── -->
+      <section id="view-doctor" class="view-section hidden">
+        <div id="doctorStats" class="stats-row"></div>
+        <div class="section-header">
+          <h2><i class="fas fa-chalkboard-teacher"></i> Assigned Projects</h2>
+          <p style="color:var(--text-muted);font-size:0.88rem;margin-top:4px">Click any project to view details and leave feedback.</p>
+        </div>
+        <div id="doctorProjectsList" class="projects-grid"></div>
+      </section>
+
+      <!-- ─── ADMIN VIEW ───────────────────────── -->
+      <section id="view-admin" class="view-section hidden">
+        <div id="adminStats" class="stats-row"></div>
+
+        <div class="admin-grid">
+          <!-- Users Table -->
+          <div class="card">
+            <div class="card-header">
+              <i class="fas fa-users-cog"></i>
+              <h2>User Management</h2>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr><th>Name</th><th>Email</th><th>Change Role</th><th>Current Role</th></tr>
+                </thead>
+                <tbody id="usersTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Announcement -->
+          <div class="card announcement-card">
+            <div class="card-header">
+              <i class="fas fa-bullhorn"></i>
+              <h2>Send Announcement</h2>
+            </div>
+            <p class="announcement-hint">This message will appear as a notification for every user on the platform.</p>
+            <textarea id="announcementText" rows="4" placeholder="Write your platform-wide announcement here…"></textarea>
+            <button id="sendAnnouncementBtn" class="btn-primary" onclick="sendAnnouncement()">
+              <i class="fas fa-paper-plane"></i><span>Broadcast to All Users</span>
             </button>
+          </div>
         </div>
-        <nav class="sidebar-nav">
-            <ul id="sidebarMenu"></ul>
-        </nav>
-        <div class="sidebar-footer">
-            <div class="user-card" id="sidebarUserCard">
-                <div class="user-avatar" id="sidebarAvatar">?</div>
-                <div class="user-details">
-                    <span class="user-name" id="sidebarUserName">...</span>
-                    <span class="user-role-label" id="sidebarRoleLabel">...</span>
-                </div>
-            </div>
-            <button class="btn-logout" onclick="handleLogout()">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>خروج</span>
-            </button>
+
+        <!-- Projects Table -->
+        <div class="card" style="margin-top:24px">
+          <div class="card-header">
+            <i class="fas fa-tasks"></i>
+            <h2>All Projects</h2>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr><th>Title</th><th>Student</th><th>Supervisor</th><th>Status</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="adminProjectsBody"></tbody>
+            </table>
+          </div>
         </div>
-    </aside>
 
-    <main class="main-area">
-        <header class="top-header">
-            <div class="header-left">
-                <h1 class="page-title" id="pageTitle">Dashboard</h1>
-            </div>
-            <div class="header-right">
-                <button class="icon-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle theme">
-                    <i class="fas fa-moon"></i>
-                </button>
-                <div class="header-badge" id="headerBadge">
-                    <span id="headerRoleName">...</span>
-                </div>
-            </div>
-        </header>
-
-        <div class="content-area" id="contentArea">
-
-            <!-- Student View -->
-            <section id="view-student" class="view-section hidden">
-                <div class="stats-row" id="studentStats"></div>
-
-                <div class="card form-card">
-                    <div class="card-header">
-                        <i class="fas fa-plus-circle"></i>
-                        <h2>إضافة مشروع جديد</h2>
-                    </div>
-                    <div class="form-grid">
-                        <div class="form-field">
-                            <label for="newProjectName">اسم المشروع *</label>
-                            <input type="text" id="newProjectName" placeholder="أدخل اسم المشروع">
-                        </div>
-                        <div class="form-field">
-                            <label for="newProjectStatus">المرحلة</label>
-                            <select id="newProjectStatus">
-                                <option value="Planning">📋 Planning</option>
-                                <option value="Design">🎨 Design</option>
-                                <option value="In Progress">⚙️ In Progress</option>
-                                <option value="Review">🔍 Review</option>
-                                <option value="Completed">✅ Completed</option>
-                            </select>
-                        </div>
-                        <div class="form-field full-width">
-                            <label for="newProjectDesc">وصف المشروع</label>
-                            <textarea id="newProjectDesc" placeholder="اكتب وصفاً مختصراً للمشروع..." rows="3"></textarea>
-                        </div>
-                    </div>
-                    <button class="btn-primary" onclick="createProject()">
-                        <i class="fas fa-plus"></i> إضافة المشروع
-                    </button>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-list"></i>
-                        <h2>مشاريعي</h2>
-                        <button class="btn-refresh" onclick="loadStudentProjects()">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
-                    </div>
-                    <div id="loadingIndicator" class="loading-state hidden">
-                        <div class="spinner"></div>
-                        <p>جاري التحميل...</p>
-                    </div>
-                    <div id="projectsTableWrapper">
-                        <table class="data-table" id="projectsTable">
-                            <thead>
-                                <tr>
-                                    <th>المشروع</th>
-                                    <th>الوصف</th>
-                                    <th>المرحلة</th>
-                                    <th>الإجراءات</th>
-                                </tr>
-                            </thead>
-                            <tbody id="projectsBody"></tbody>
-                        </table>
-                        <div id="emptyState" class="empty-state hidden">
-                            <i class="fas fa-inbox"></i>
-                            <p>لا توجد مشاريع بعد. أضف مشروعك الأول!</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Edit Modal -->
-            <div id="editModal" class="modal-overlay hidden">
-                <div class="modal-box">
-                    <div class="modal-header">
-                        <h3><i class="fas fa-edit"></i> تعديل المشروع</h3>
-                        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-                    </div>
-                    <div class="form-field">
-                        <label>اسم المشروع</label>
-                        <input type="text" id="editName">
-                    </div>
-                    <div class="form-field">
-                        <label>الوصف</label>
-                        <textarea id="editDesc" rows="3"></textarea>
-                    </div>
-                    <div class="form-field">
-                        <label>المرحلة</label>
-                        <select id="editStatus">
-                            <option value="Planning">📋 Planning</option>
-                            <option value="Design">🎨 Design</option>
-                            <option value="In Progress">⚙️ In Progress</option>
-                            <option value="Review">🔍 Review</option>
-                            <option value="Completed">✅ Completed</option>
-                        </select>
-                    </div>
-                    <div class="modal-actions">
-                        <button class="btn-primary" onclick="saveEdit()"><i class="fas fa-save"></i> حفظ</button>
-                        <button class="btn-secondary" onclick="closeModal()">إلغاء</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Doctor/Supervisor View -->
-            <section id="view-doctor" class="view-section hidden">
-                <div class="stats-row" id="doctorStats"></div>
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-chart-bar"></i>
-                        <h2>Project Distribution by Stage</h2>
-                    </div>
-                    <div class="chart-wrapper">
-                        <canvas id="projectsChart"></canvas>
-                    </div>
-                </div>
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-users"></i>
-                        <h2>All Student Projects</h2>
-                        <button class="btn-refresh" onclick="loadDoctorData()">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
-                    </div>
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Project</th>
-                                <th>Description</th>
-                                <th>Stage</th>
-                                <th>Student</th>
-                            </tr>
-                        </thead>
-                        <tbody id="doctorProjectsBody"></tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- Profile View -->
-            <section id="view-profile" class="view-section hidden">
-                <div class="card profile-card">
-                    <div class="profile-avatar-big" id="profileAvatarBig">?</div>
-                    <h2 id="profileNameDisplay">...</h2>
-                    <p id="profileEmailDisplay" class="text-muted">...</p>
-                    <span class="role-badge" id="profileRoleBadge">...</span>
-                </div>
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-cog"></i>
-                        <h2>Account Settings</h2>
-                    </div>
-                    <div class="settings-list">
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <span class="setting-label">Dark Mode</span>
-                                <span class="setting-desc">Toggle between light and dark theme</span>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="darkModeToggle" onchange="toggleTheme()">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <span class="setting-label">Sign Out</span>
-                                <span class="setting-desc">End your current session</span>
-                            </div>
-                            <button class="btn-danger-sm" onclick="handleLogout()">
-                                <i class="fas fa-sign-out-alt"></i> Sign Out
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
+        <!-- Chart -->
+        <div class="card" style="margin-top:24px">
+          <div class="card-header">
+            <i class="fas fa-chart-pie"></i>
+            <h2>Projects by Status</h2>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="adminChart"></canvas>
+          </div>
         </div>
+      </section>
+
+      <!-- ─── PROFILE VIEW ─────────────────────── -->
+      <section id="view-profile" class="view-section hidden">
+        <div class="profile-card">
+          <div id="profileAvatarBig" class="profile-avatar-big">A</div>
+          <h2 id="profileNameDisplay">—</h2>
+          <p id="profileEmailDisplay" class="profile-email">—</p>
+          <span id="profileRoleBadge" class="profile-role-badge">—</span>
+        </div>
+        <div class="card profile-settings-card">
+          <div class="card-header">
+            <i class="fas fa-cog"></i>
+            <h2>Preferences</h2>
+          </div>
+          <div class="pref-row">
+            <div>
+              <strong>Dark Mode</strong>
+              <p style="color:var(--text-muted);font-size:0.85rem;margin-top:2px">Toggle between light and dark theme</p>
+            </div>
+            <label class="toggle-switch">
+              <input id="darkModeToggle" type="checkbox" onchange="toggleTheme()" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+
     </main>
+  </div>
 </div>
 
-<!-- Toast Notification -->
+<!-- ═══════════════════════════════════════════════
+     PROJECT DETAIL MODAL (comments + status)
+════════════════════════════════════════════════ -->
+<div id="projectDetailModal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <h2 id="modalProjectTitle">Project Title</h2>
+        <div id="modalProjectMeta" class="modal-meta"></div>
+      </div>
+      <button class="modal-close" onclick="closeProjectDetail()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="modal-left">
+        <!-- Description -->
+        <div class="modal-section">
+          <h3 class="modal-section-title"><i class="fas fa-align-left"></i> Description</h3>
+          <p id="modalProjectDesc" class="modal-desc-text"></p>
+        </div>
+
+        <!-- Status Badge + Timeline -->
+        <div class="modal-section">
+          <h3 class="modal-section-title"><i class="fas fa-stream"></i> Progress</h3>
+          <div id="modalProjectStatus"></div>
+          <div id="modalTimeline" style="margin-top:16px"></div>
+        </div>
+
+        <!-- Status Controls (doctor/admin) -->
+        <div id="modalStatusActions"></div>
+      </div>
+
+      <div class="modal-right">
+        <!-- Comments Thread -->
+        <div class="comments-panel">
+          <h3 class="modal-section-title"><i class="fas fa-comments"></i> Discussion</h3>
+          <div id="commentsContainer" class="comments-container"></div>
+          <div class="comment-input-wrap">
+            <textarea id="commentInput" rows="2" placeholder="Write a comment or feedback…"
+                      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendComment()}"></textarea>
+            <button id="sendCommentBtn" class="btn-send" onclick="sendComment()" title="Send">
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     TOAST
+════════════════════════════════════════════════ -->
 <div id="toast" class="toast hidden">
-    <i class="toast-icon fas fa-check-circle"></i>
-    <span id="toastMsg"></span>
+  <i class="toast-icon fas fa-check-circle"></i>
+  <span id="toastMsg"></span>
 </div>
 
+<!-- ═══════════════════════════════════════════════
+     SCRIPTS
+════════════════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

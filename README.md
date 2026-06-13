@@ -1,61 +1,68 @@
-# Enjaz Platform — Student Projects Management
+# Enjaz — Student Projects Platform
 
 ![Status](https://img.shields.io/badge/Status-Live-brightgreen)
 ![GitHub Pages](https://img.shields.io/badge/Hosted-GitHub%20Pages-blue)
-![Supabase](https://img.shields.io/badge/Auth-Supabase-3FCF8E)
-![Airtable](https://img.shields.io/badge/DB-Airtable-FFBF00)
+![Supabase](https://img.shields.io/badge/Auth%20%26%20Data-Supabase-3FCF8E)
 
 ## Live Demo
 
-**[Open Platform →](https://Anas-Alghamdi-CS.github.io/enjaz-platform/)**
+**[Open Enjaz Platform →](https://Anas-Alghamdi-CS.github.io/enjaz-platform/)**
 
 ---
 
-## Demo Credentials
+## Demo Accounts
 
-Use these accounts to explore the platform — no sign-up required.
+| Role | Email | Password |
+|------|-------|----------|
+| **Admin** | `admin@enjaz.demo` | `Enjaz@2025` |
+| **Supervisor (Doctor)** | `dr.sara@enjaz.demo` | `Enjaz@2025` |
+| **Student** | `student1@enjaz.demo` | `Enjaz@2025` |
 
-### Student Account
-| Field | Value |
-|-------|-------|
-| **Email** | `ahmed.qahtani@enjaz.demo` |
-| **Password** | `Enjaz@2025` |
-| **Role** | 🎓 Student |
-| **Features** | Add / Edit / Delete own projects, view stats |
-
-### Supervisor Account
-| Field | Value |
-|-------|-------|
-| **Email** | `dr.farsi@enjaz.demo` |
-| **Password** | `Enjaz@2025` |
-| **Role** | 👨‍🏫 Supervisor |
-| **Features** | View all projects, analytics chart, project distribution |
-
-> All 20 student accounts share the password `Enjaz@2025`. All 4 supervisor accounts share the same password.
+> You can also register a new account from the Sign Up tab — no email confirmation required.
 
 ---
 
-## Overview
+## What It Does
 
-**Enjaz** is a professional student project management platform built as an evolutionary project across three assignments in **AI4101 — Generative AI & Vibe Coding**.
-
-| Assignment | What was built | Weight |
-|------------|----------------|--------|
-| A1 | Single-Page App with a professional UI deployed to GitHub Pages | 3% |
-| A2 | Full CRUD operations backed by Airtable (Create / Read / Update / Delete) | 4% |
-| A3 | Supabase authentication + professional GitHub Pages hosting | 3% |
+A fully interactive, role-based academic project management platform with real-time collaboration between students, supervisors, and administrators.
 
 ---
 
-## Features
+## Role Capabilities
 
-- 🔐 **Authentication** — Sign up, sign in, and sign out via Supabase Auth
-- 📋 **Full CRUD** — Add, view, edit, and delete projects stored in Airtable
-- 📊 **Analytics Chart** — Project distribution by stage (Chart.js)
-- 🌙 **Dark Mode** — Persistent theme preference via localStorage
-- 📱 **Responsive Design** — Works on mobile and desktop
-- 👥 **Role-based UI** — Student view and Supervisor view
-- ⚡ **No build step** — Runs directly on GitHub Pages
+### 🎓 Student
+- Submit a new project proposal (title, description, select supervisor)
+- View all own projects with a **visual status timeline** (Pending → In Progress → Review → Done)
+- Read feedback and **reply in comment threads** per project
+- Receive **real-time notifications** when the supervisor changes status or comments
+
+### 👨‍🏫 Supervisor (Doctor)
+- View all projects assigned to them with student details
+- **Change project status** directly from the project card or the detail modal
+- Add feedback comments — with a **mandatory rejection reason** when rejecting
+- Dashboard stats: Total supervised / Pending / Under Review / Completed
+- Receive notifications when students submit new projects
+
+### 🔑 Admin
+- **User management table** — view all users, change roles (student ↔ supervisor ↔ admin)
+- **Full project oversight** — see all projects from all users, open any, delete any
+- **Analytics chart** — doughnut chart showing project distribution by status
+- **Broadcast announcements** — send a platform-wide notification to every user at once
+
+---
+
+## Interactive Features (not just UI)
+
+| Feature | Description |
+|---------|-------------|
+| Comment threads | Each project has a chat-style comment thread visible to student + supervisor + admin |
+| Status timeline | Visual step indicator per project (Pending → In Progress → Under Review → Approved/Rejected/Completed) |
+| Rejection reason | Doctor must write a comment before the "Rejected" status can be applied |
+| Notification bell | Bell icon with unread badge — clicking shows inbox of all notifications |
+| Supervisor picker | Student selects a supervisor when submitting (not a random assignment) |
+| Announcement broadcast | Admin can send one message that appears in every user's notification inbox |
+| Role management | Admin can change any user's role live from the users table |
+| Dark / Light mode | Persistent theme toggle across sessions |
 
 ---
 
@@ -63,13 +70,26 @@ Use these accounts to explore the platform — no sign-up required.
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | HTML5 + Vanilla CSS + Vanilla JavaScript |
-| Authentication | Supabase (CDN) |
-| Database | Airtable REST API |
-| Charts | Chart.js |
-| Icons | Font Awesome 6 |
-| Fonts | Google Fonts — Tajawal |
+| Frontend | Single-file HTML + Vanilla CSS + Vanilla JS |
+| Authentication | Supabase Auth (email/password, no email confirmation) |
+| Database | Supabase PostgreSQL (projects, comments, profiles, notifications) |
+| Charts | Chart.js v4 (CDN) |
 | Hosting | GitHub Pages |
+
+---
+
+## Supabase Schema
+
+**4 tables:**
+
+| Table | Purpose |
+|-------|---------|
+| `profiles` | One row per user — name, role, email (auto-created on signup via trigger) |
+| `projects` | Project proposals — linked to student + supervisor by user ID |
+| `comments` | Thread per project — linked to project + author |
+| `notifications` | Inbox per user — created on status change, comment, or announcement |
+
+Row-Level Security ensures students only see their own projects, doctors only see assigned ones, and admins see everything.
 
 ---
 
@@ -77,53 +97,36 @@ Use these accounts to explore the platform — no sign-up required.
 
 ```
 enjaz-platform/
-├── index.html      ← Single-page app shell
-├── style.css       ← Complete design system with dark mode
-├── app.js          ← Auth logic + Airtable CRUD + UI controllers
-├── README.md       ← This file
-└── PROMPTS.md      ← AI prompts and design decision log
+├── index.html       ← Complete single-file app (HTML structure)
+├── app.js           ← All application logic (Supabase queries, roles, events)
+├── style.css        ← Complete styling (design tokens, components, responsive)
+├── seed.html        ← One-click tool to create demo accounts & sample data
+├── .nojekyll        ← Disables Jekyll on GitHub Pages
+├── README.md        ← This file
+└── PROMPTS.md       ← AI prompts and design decisions log
 ```
 
 ---
 
-## Airtable Data Model
+## Assignment Context
 
-**Table name:** `Projects`
+This is Assignment 3 (A3) for **AI4101 — Generative AI & Vibe Coding** at Umm Al-Qura University.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| Name | Single line text | Project title |
-| Description | Long text | Short project summary |
-| Status | Single select | Planning / Design / In Progress / Review / Completed |
-| StudentEmail | Email | Owner's email address |
-
----
-
-## Assignment Checklist
-
-### A1 — Ship Your First App ✅
-- [x] Working single-page application
-- [x] Built primarily through AI prompting (vibe coding)
-- [x] Deployed to a public URL on GitHub Pages
-
-### A2 — Add Data & CRUD ✅
-- [x] **Create** — Add a new project via the form
-- [x] **Read** — Fetch and display all projects from Airtable
-- [x] **Update** — Edit a project through a modal dialog
-- [x] **Delete** — Remove a project with a confirmation prompt
-- [x] Connected to Airtable as the live data store
-
-### A3 — Go Professional ✅
-- [x] Supabase Auth — sign up, sign in, sign out
-- [x] Role metadata stored in Supabase user object
-- [x] GitHub Pages as the production host (no build step required)
+| Requirement | Status |
+|-------------|--------|
+| GitHub Pages deployment | ✅ |
+| Supabase Auth (email/password) | ✅ |
+| Supabase Database (real CRUD) | ✅ |
+| Role-based access (student / doctor / admin) | ✅ |
+| Real interactivity between roles | ✅ |
+| Seed data for demonstration | ✅ |
 
 ---
 
 ## Developer
 
-**Student:** Anas Alghamdi  
-**Course:** AI4101 — Generative AI & Vibe Coding  
+**Student:** Anas Alghamdi
+**Course:** AI4101 — Generative AI & Vibe Coding
 **University:** Umm Al-Qura University
 
 ---
