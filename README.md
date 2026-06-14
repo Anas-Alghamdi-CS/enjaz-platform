@@ -16,8 +16,8 @@ YouTube link:
 | Role | Email | Password |
 |------|-------|----------|
 | **Admin** | `admin@enjaz.demo` | `Password123!` |
-| **Supervisor (Doctor)** | `dr.khalid_2932@enjaz.demo` | `Password123!` |
-| **Student** | `student_ali_2932@enjaz.demo` | `Password123!` |
+| **Supervisor (Doctor)** | `dr.khalid.demo@enjaz.com` | `Password123!` |
+| **Student** | `student.ali.demo@enjaz.com` | `Password123!` |
 
 > You can also register a new account from the Sign Up tab. The seed script (`seed.html`) will automatically upgrade whatever email you log in with to Admin, and any email starting with `dr.` to Supervisor.
 
