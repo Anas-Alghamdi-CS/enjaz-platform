@@ -234,11 +234,20 @@ async function loadStudentView() {
             (doctors || []).map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('');
     }
 
-    const { data: projects } = await _supabase
+    const { data: projectsData, error: projErr } = await _supabase
         .from('projects')
-        .select('id, title, description, status, created_at, doctor_id, profiles!projects_doctor_id_fkey(name)')
+        .select('*')
         .eq('student_id', currentUser.id)
         .order('created_at', { ascending: false });
+
+    if (projErr) console.error("Projects error:", projErr);
+
+    const { data: profiles } = await _supabase.from('profiles').select('id, name');
+
+    const projects = (projectsData || []).map(p => ({
+        ...p,
+        profiles: { name: profiles?.find(prof => prof.id === p.doctor_id)?.name || 'Unknown Doctor' }
+    }));
 
     renderStudentProjects(projects || []);
 }
@@ -335,11 +344,23 @@ async function submitProject() {
 
 /* ── Doctor View ────────────────────────────────────────── */
 async function loadDoctorView() {
-    const { data: projects } = await _supabase
+    const { data: projectsData, error: projErr } = await _supabase
         .from('projects')
-        .select('id, title, description, status, created_at, student_id, profiles!projects_student_id_fkey(name, email)')
+        .select('*')
         .eq('doctor_id', currentUser.id)
         .order('created_at', { ascending: false });
+
+    if (projErr) console.error("Projects error:", projErr);
+
+    const { data: profiles } = await _supabase.from('profiles').select('id, name, email');
+
+    const projects = (projectsData || []).map(p => ({
+        ...p,
+        profiles: { 
+            name: profiles?.find(prof => prof.id === p.student_id)?.name || 'Unknown Student',
+            email: profiles?.find(prof => prof.id === p.student_id)?.email || ''
+        }
+    }));
 
     renderDoctorStats(projects || []);
     renderDoctorProjects(projects || []);
@@ -430,14 +451,24 @@ async function openProjectDetail(projectId, forceRejectComment = false) {
     document.getElementById('commentsContainer').innerHTML =
         `<div style="text-align:center;padding:30px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>`;
 
-    const { data: p } = await _supabase
+    const { data: pData, error: pErr } = await _supabase
         .from('projects')
-        .select(`id, title, description, status, created_at, updated_at,
-                 student_id, doctor_id,
-                 student:profiles!projects_student_id_fkey(name, email),
-                 doctor:profiles!projects_doctor_id_fkey(name)`)
+        .select('*')
         .eq('id', projectId)
         .single();
+        
+    if (pErr) console.error("Project View error:", pErr);
+    
+    const { data: profiles } = await _supabase.from('profiles').select('id, name, email');
+    
+    let p = pData;
+    if (p) {
+        p.student = { 
+            name: profiles?.find(prof => prof.id === p.student_id)?.name || 'Unknown',
+            email: profiles?.find(prof => prof.id === p.student_id)?.email || ''
+        };
+        p.doctor = { name: profiles?.find(prof => prof.id === p.doctor_id)?.name || 'Unknown' };
+    }
 
     if (!p) { closeProjectDetail(); return; }
 
@@ -581,14 +612,18 @@ async function sendComment() {
 
 /* ── Admin View ─────────────────────────────────────────── */
 async function loadAdminView() {
-    const [{ data: profiles }, { data: projects }] = await Promise.all([
+    const [{ data: profiles }, { data: projectsData, error: projErr }] = await Promise.all([
         _supabase.from('profiles').select('*').order('role'),
-        _supabase.from('projects')
-            .select(`id, title, description, status, created_at,
-                     student:profiles!projects_student_id_fkey(name),
-                     doctor:profiles!projects_doctor_id_fkey(name)`)
-            .order('created_at', { ascending: false })
+        _supabase.from('projects').select('*').order('created_at', { ascending: false })
     ]);
+
+    if (projErr) console.error("Admin Projects error:", projErr);
+
+    const projects = (projectsData || []).map(p => ({
+        ...p,
+        student: { name: profiles?.find(prof => prof.id === p.student_id)?.name || 'Unknown' },
+        doctor: { name: profiles?.find(prof => prof.id === p.doctor_id)?.name || 'Unknown' }
+    }));
 
     renderAdminStats(profiles || [], projects || []);
     renderUsersTable(profiles || []);
