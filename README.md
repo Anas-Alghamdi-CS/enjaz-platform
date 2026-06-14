@@ -8,13 +8,14 @@
 
 **[Open Enjaz Platform →](https://Anas-Alghamdi-CS.github.io/enjaz-platform/)**
 
+YouTube link:
 ---
 
 ## Demo Accounts
 
 | Role | Email | Password |
 |------|-------|----------|
-| **Admin** | `anas.g.algamdi@gmail.com` | *(كلمة المرور الخاصة بك)* |
+| **Admin** | `anas.g.algamdi@gmail.com` | `Enjaz@2025` |
 | **Supervisor (Doctor)** | `dr.khalid_2932@enjaz.demo` | `Password123!` |
 | **Student** | `student_ali_2932@enjaz.demo` | `Password123!` |
 
