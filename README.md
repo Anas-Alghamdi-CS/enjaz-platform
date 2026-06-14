@@ -8,7 +8,7 @@
 
 **[Open Enjaz Platform →](https://Anas-Alghamdi-CS.github.io/enjaz-platform/)**
 
-YouTube link:
+YouTube link: [https://youtu.be/0gzl_PbU0ic](https://youtu.be/0gzl_PbU0ic)
 ---
 
 ## Demo Accounts
