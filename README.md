@@ -15,8 +15,8 @@
 | Role | Email | Password |
 |------|-------|----------|
 | **Admin** | `anas.g.algamdi@gmail.com` | *(كلمة المرور الخاصة بك)* |
-| **Supervisor (Doctor)** | `dr.khalid.demo@enjaz.com` | `Password123!` |
-| **Student** | `student.ali.demo@enjaz.com` | `Password123!` |
+| **Supervisor (Doctor)** | `dr.khalid_2932@enjaz.demo` | `Password123!` |
+| **Student** | `student_ali_2932@enjaz.demo` | `Password123!` |
 
 > You can also register a new account from the Sign Up tab. The seed script (`seed.html`) will automatically upgrade `anas.g.algamdi@gmail.com` to Admin and any email starting with `dr.` to Supervisor.
 
