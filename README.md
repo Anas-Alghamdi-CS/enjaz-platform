@@ -15,11 +15,11 @@ YouTube link:
 
 | Role | Email | Password |
 |------|-------|----------|
-| **Admin** | `anas.g.algamdi@gmail.com` | `Enjaz@2025` |
+| **Admin** | `admin@enjaz.demo` | `Password123!` |
 | **Supervisor (Doctor)** | `dr.khalid_2932@enjaz.demo` | `Password123!` |
 | **Student** | `student_ali_2932@enjaz.demo` | `Password123!` |
 
-> You can also register a new account from the Sign Up tab. The seed script (`seed.html`) will automatically upgrade `anas.g.algamdi@gmail.com` to Admin and any email starting with `dr.` to Supervisor.
+> You can also register a new account from the Sign Up tab. The seed script (`seed.html`) will automatically upgrade whatever email you log in with to Admin, and any email starting with `dr.` to Supervisor.
 
 ---
 
