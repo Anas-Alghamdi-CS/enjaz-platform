@@ -14,11 +14,11 @@
 
 | Role | Email | Password |
 |------|-------|----------|
-| **Admin** | `admin@enjaz.demo` | `Enjaz@2025` |
-| **Supervisor (Doctor)** | `dr.sara@enjaz.demo` | `Enjaz@2025` |
-| **Student** | `student1@enjaz.demo` | `Enjaz@2025` |
+| **Admin** | `anas.g.algamdi@gmail.com` | *(كلمة المرور الخاصة بك)* |
+| **Supervisor (Doctor)** | `dr.amri@enjaz.demo` | *(كلمة المرور الخاصة بك)* |
+| **Student** | `abdulrahman.saud@enjaz.demo` | *(كلمة المرور الخاصة بك)* |
 
-> You can also register a new account from the Sign Up tab — no email confirmation required.
+> You can also register a new account from the Sign Up tab. The seed script (`seed.html`) will automatically upgrade `anas.g.algamdi@gmail.com` to Admin and any email starting with `dr.` to Supervisor.
 
 ---
 

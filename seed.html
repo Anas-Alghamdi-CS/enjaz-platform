@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Enjaz — Seed Tool</title>
+  <title>Enjaz — Smart Seed Tool</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -22,17 +22,6 @@
       font-size: 0.88rem; line-height: 1.7;
     }
     .warning strong { display: block; margin-bottom: 4px; font-size: 0.95rem; }
-
-    .stats-row {
-      display: grid; grid-template-columns: repeat(4, 1fr);
-      gap: 14px; margin-bottom: 28px;
-    }
-    .stat {
-      background: #1e293b; border: 1px solid #2d3748;
-      border-radius: 12px; padding: 16px; text-align: center;
-    }
-    .stat-num { font-size: 2rem; font-weight: 800; color: #6366f1; }
-    .stat-label { font-size: 0.76rem; color: #64748b; margin-top: 4px; }
 
     .btn-run {
       width: 100%; padding: 16px;
@@ -55,89 +44,35 @@
     .log-err  { color: #f87171; }
     .log-info { color: #94a3b8; }
     .log-head { color: #60a5fa; font-weight: bold; margin-top: 12px; }
-
-    .accounts-table {
-      width: 100%; border-collapse: collapse;
-      margin-top: 24px; font-size: 0.85rem;
-    }
-    .accounts-table th {
-      background: #1e293b; padding: 10px 14px;
-      color: #94a3b8; font-weight: 600; text-align: left;
-      border-bottom: 1px solid #2d3748;
-    }
-    .accounts-table td {
-      padding: 10px 14px; border-bottom: 1px solid #1e293b;
-      font-family: monospace;
-    }
-    .role-pill {
-      display: inline-block; padding: 2px 10px; border-radius: 99px;
-      font-size: 0.75rem; font-weight: 700;
-    }
-    .role-admin   { background: rgba(99,102,241,0.2); color: #a5b4fc; }
-    .role-doctor  { background: rgba(16,185,129,0.2); color: #6ee7b7; }
-    .role-student { background: rgba(59,130,246,0.2); color: #93c5fd; }
   </style>
 </head>
 <body>
 <div class="container">
-  <h1>🌱 Enjaz Seed Tool</h1>
-  <p class="subtitle">Creates demo accounts and sample projects. Run once, then open the main app.</p>
+  <h1>🌱 Enjaz Smart Seed Tool</h1>
+  <p class="subtitle">Assigns roles to existing accounts and generates sample projects/comments.</p>
 
   <div class="warning">
-    <strong>⚠️ Important — Run this only once!</strong>
-    If you run it twice, Supabase will reject duplicate emails (no harm done, but the log will show errors).
-    After seeding, use the credentials below to log in to the main platform.
-  </div>
-
-  <div class="stats-row">
-    <div class="stat"><div class="stat-num">1</div><div class="stat-label">Admin</div></div>
-    <div class="stat"><div class="stat-num">3</div><div class="stat-label">Supervisors</div></div>
-    <div class="stat"><div class="stat-num">10</div><div class="stat-label">Students</div></div>
-    <div class="stat"><div class="stat-num">15</div><div class="stat-label">Projects</div></div>
+    <strong>⚠️ How this works:</strong>
+    1. It reads your CURRENT users in Supabase.<br>
+    2. Makes <b>anas.g.algamdi@gmail.com</b> the Admin.<br>
+    3. Makes any email starting with <b>dr.</b> a Supervisor (Doctor).<br>
+    4. Makes everyone else a Student.<br>
+    5. Creates dummy projects and comments between them.
   </div>
 
   <button class="btn-run" id="runBtn" onclick="runSeed()">
-    🚀 Create All Demo Accounts & Projects
+    🚀 Setup Roles & Generate Projects
   </button>
 
   <div class="log-box" id="logBox">
-    <span class="log-info">Press the button above to start seeding…</span>
+    <span class="log-info">Press the button above to start...</span>
   </div>
-
-  <table class="accounts-table" style="margin-top:28px">
-    <thead>
-      <tr><th>Role</th><th>Email</th><th>Password</th><th>Name</th></tr>
-    </thead>
-    <tbody>
-      <tr><td><span class="role-pill role-admin">Admin</span></td><td>admin@enjaz.demo</td><td>Enjaz@2025</td><td>Platform Admin</td></tr>
-      <tr><td><span class="role-pill role-doctor">Supervisor</span></td><td>dr.sara@enjaz.demo</td><td>Enjaz@2025</td><td>Dr. Sara Khalid</td></tr>
-      <tr><td><span class="role-pill role-doctor">Supervisor</span></td><td>dr.omar@enjaz.demo</td><td>Enjaz@2025</td><td>Dr. Omar Nasser</td></tr>
-      <tr><td><span class="role-pill role-doctor">Supervisor</span></td><td>dr.hana@enjaz.demo</td><td>Enjaz@2025</td><td>Dr. Hana Saleh</td></tr>
-      <tr><td><span class="role-pill role-student">Student</span></td><td>student1@enjaz.demo</td><td>Enjaz@2025</td><td>Faisal Al-Mutairi</td></tr>
-      <tr><td><span class="role-pill role-student">Student</span></td><td>student2@enjaz.demo</td><td>Enjaz@2025</td><td>Reem Al-Zahrani</td></tr>
-      <tr><td><span class="role-pill role-student">Student</span></td><td>student3@enjaz.demo</td><td>Enjaz@2025</td><td>Khaled Al-Shehri</td></tr>
-      <tr><td><span class="role-pill role-student">Student</span></td><td>student4@enjaz.demo</td><td>Enjaz@2025</td><td>Nora Al-Qahtani</td></tr>
-      <tr><td><span class="role-pill role-student">Student</span></td><td>student5@enjaz.demo</td><td>Enjaz@2025</td><td>Abdullah Al-Dosari</td></tr>
-    </tbody>
-  </table>
 </div>
 
 <script>
 const SUPABASE_URL  = 'https://qyxrfpiyefruokiiwyvf.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_NJLGu7AW9GjTdHGkcnhPhA_JO69O-yW';
 const _s = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
-
-const USERS = [
-  { email: 'admin@enjaz.demo',    password: 'Enjaz@2025', name: 'Platform Admin',     role: 'admin'   },
-  { email: 'dr.sara@enjaz.demo',  password: 'Enjaz@2025', name: 'Dr. Sara Khalid',    role: 'doctor'  },
-  { email: 'dr.omar@enjaz.demo',  password: 'Enjaz@2025', name: 'Dr. Omar Nasser',    role: 'doctor'  },
-  { email: 'dr.hana@enjaz.demo',  password: 'Enjaz@2025', name: 'Dr. Hana Saleh',     role: 'doctor'  },
-  { email: 'student1@enjaz.demo', password: 'Enjaz@2025', name: 'Faisal Al-Mutairi',  role: 'student' },
-  { email: 'student2@enjaz.demo', password: 'Enjaz@2025', name: 'Reem Al-Zahrani',    role: 'student' },
-  { email: 'student3@enjaz.demo', password: 'Enjaz@2025', name: 'Khaled Al-Shehri',   role: 'student' },
-  { email: 'student4@enjaz.demo', password: 'Enjaz@2025', name: 'Nora Al-Qahtani',    role: 'student' },
-  { email: 'student5@enjaz.demo', password: 'Enjaz@2025', name: 'Abdullah Al-Dosari', role: 'student' },
-];
 
 const PROJECTS_TEMPLATE = [
   { title: 'AI-Powered Course Recommendation System',  description: 'Uses collaborative filtering to suggest personalized courses to students based on their history.', status: 'In Progress' },
@@ -191,66 +126,49 @@ async function runSeed() {
   btn.disabled = true;
   document.getElementById('logBox').innerHTML = '';
 
-  const createdIds = {};
+  // ── 1. Fetch Existing Profiles ──────────────────────────────
+  logHead('1. Fetching Existing Accounts');
+  const { data: profiles, error: pErr } = await _s.from('profiles').select('*');
+  
+  if (pErr || !profiles || profiles.length === 0) {
+    log('✗ Failed to fetch profiles or no users exist. Please sign up at least a few users first.', 'err');
+    btn.disabled = false;
+    return;
+  }
+  
+  log(`Found ${profiles.length} users in the database.`, 'info');
 
-  // ── 1. Create users ──────────────────────────────────────
-  logHead('Creating Users');
-  for (const u of USERS) {
-    const { data, error } = await _s.auth.signUp({
-      email:    u.email,
-      password: u.password,
-      options:  { data: { name: u.name, role: u.role } }
-    });
-    if (error) {
-      log(`✗ ${u.email} — ${error.message}`, 'err');
+  // ── 2. Assign Roles ─────────────────────────────────────────
+  logHead('2. Assigning Roles');
+  for (const p of profiles) {
+    let newRole = 'student';
+    if (p.email === 'anas.g.algamdi@gmail.com') {
+      newRole = 'admin';
+    } else if (p.email.startsWith('dr.')) {
+      newRole = 'doctor';
+    }
+
+    if (p.role !== newRole) {
+      await _s.from('profiles').update({ role: newRole }).eq('id', p.id);
+      log(`✓ Updated role for ${p.email} → ${newRole.toUpperCase()}`, 'ok');
     } else {
-      createdIds[u.email] = data.user?.id;
-      log(`✓ Created ${u.role.padEnd(7)} — ${u.email}`, 'ok');
-    }
-    await sleep(400);
-  }
-
-  // ── 2. Wait for trigger to create profiles ───────────────
-  log('Waiting 3s for DB trigger to create profiles…', 'info');
-  await sleep(3000);
-
-  // ── 3. Verify / fix profiles ─────────────────────────────
-  logHead('Verifying Profiles');
-  const { data: profiles } = await _s.from('profiles').select('id, email, role, name');
-  log(`Found ${profiles?.length || 0} profiles in DB.`, 'info');
-
-  for (const u of USERS) {
-    const profile = profiles?.find(p => p.email === u.email);
-    if (!profile && createdIds[u.email]) {
-      await _s.from('profiles').upsert({
-        id:    createdIds[u.email],
-        name:  u.name,
-        role:  u.role,
-        email: u.email
-      });
-      log(`  Manually created profile for ${u.email}`, 'info');
-    } else if (profile && profile.role !== u.role) {
-      await _s.from('profiles').update({ role: u.role, name: u.name }).eq('id', profile.id);
-      log(`  Fixed role for ${u.email} → ${u.role}`, 'info');
+      log(`- ${p.email} is already ${newRole.toUpperCase()}`, 'info');
     }
   }
 
-  // ── 4. Reload profiles with IDs ──────────────────────────
-  const { data: finalProfiles } = await _s.from('profiles').select('id, email, role, name');
-  const byEmail = {};
-  (finalProfiles || []).forEach(p => { byEmail[p.email] = p.id; });
+  // ── 3. Reload Profiles ──────────────────────────────────────
+  const { data: finalProfiles } = await _s.from('profiles').select('*');
+  const doctors  = finalProfiles.filter(p => p.role === 'doctor');
+  const students = finalProfiles.filter(p => p.role === 'student');
 
-  const doctors  = (finalProfiles || []).filter(p => p.role === 'doctor');
-  const students = (finalProfiles || []).filter(p => p.role === 'student');
-
-  if (!doctors.length || !students.length) {
-    log('ERROR: No doctors or students found in profiles. Seed aborted.', 'err');
+  if (doctors.length === 0 || students.length === 0) {
+    log('✗ Need at least 1 doctor and 1 student to create projects.', 'err');
     btn.disabled = false;
     return;
   }
 
-  // ── 5. Create projects ───────────────────────────────────
-  logHead('Creating Projects');
+  // ── 4. Create Projects ──────────────────────────────────────
+  logHead('3. Creating Sample Projects');
   const insertedProjects = [];
   for (let i = 0; i < PROJECTS_TEMPLATE.length; i++) {
     const pt      = PROJECTS_TEMPLATE[i];
@@ -266,16 +184,16 @@ async function runSeed() {
     }).select().single();
 
     if (error) {
-      log(`✗ Project "${pt.title}" — ${error.message}`, 'err');
+      log(`✗ Failed Project "${pt.title}" — ${error.message}`, 'err');
     } else {
       insertedProjects.push({ ...proj, student, doctor });
-      log(`✓ "${pt.title}" (${pt.status}) — ${student.name} → ${doctor.name}`, 'ok');
+      log(`✓ "${pt.title}" assigned to ${student.email} (Sup: ${doctor.email})`, 'ok');
     }
     await sleep(150);
   }
 
-  // ── 6. Add sample comments ───────────────────────────────
-  logHead('Adding Sample Comments');
+  // ── 5. Add Sample Comments ──────────────────────────────────
+  logHead('4. Adding Sample Comments');
   for (const proj of insertedProjects.slice(0, 8)) {
     const comment = SAMPLE_COMMENTS[Math.floor(Math.random() * SAMPLE_COMMENTS.length)];
     await _s.from('comments').insert({
@@ -283,14 +201,13 @@ async function runSeed() {
       author_id:  proj.doctor.id,
       body:       comment
     });
-    log(`✓ Comment on "${proj.title.substring(0,40)}…"`, 'ok');
+    log(`✓ Added comment on "${proj.title.substring(0,20)}…"`, 'ok');
     await sleep(100);
   }
 
-  // ── 7. Done ──────────────────────────────────────────────
+  // ── 6. Done ─────────────────────────────────────────────────
   logHead('Seed Complete');
-  log(`✅ Created ${USERS.length} accounts, ${insertedProjects.length} projects, 8 comments.`, 'ok');
-  log('You can now log in to the main app with any of the accounts listed above.', 'info');
+  log(`✅ Roles updated, ${insertedProjects.length} projects created.`, 'ok');
   btn.textContent = '✅ Done! Open main app to log in.';
 }
 </script>
