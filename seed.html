@@ -60,17 +60,17 @@
 </head>
 <body>
 <div class="container">
-  <h1>🌱 Enjaz Smart Seed Tool</h1>
-  <p class="subtitle">Assigns roles to existing accounts and generates sample projects/comments.</p>
+  <h1>🌱 Enjaz Smart Seed Tool (V3)</h1>
+  <p class="subtitle">Guarantees the creation of demo doctors, students, and projects!</p>
 
   <div class="warning">
-    <strong>⚠️ Authentication Required</strong>
-    Because your database is protected (Row Level Security), you must log in with your email (e.g. <b>anas.g.algamdi@gmail.com</b>) to allow the script to read the existing accounts and assign roles.
+    <strong>⚠️ New Update:</strong>
+    This script will now automatically generate fresh dummy accounts for Doctors and Students if you don't have them in your database. Just login with your Admin account below!
   </div>
 
   <form id="seedForm" class="login-box" onsubmit="event.preventDefault(); startProcess();">
     <div>
-      <label>Your Email</label>
+      <label>Your Admin Email</label>
       <input type="email" id="seedEmail" placeholder="anas.g.algamdi@gmail.com" required>
     </div>
     <div>
@@ -78,7 +78,7 @@
       <input type="password" id="seedPassword" placeholder="••••••••" required>
     </div>
     <button type="submit" class="btn-run" id="runBtn">
-      🚀 Login, Setup Roles & Generate Projects
+      🚀 Generate Complete Demo Data
     </button>
   </form>
 
@@ -101,13 +101,6 @@ const PROJECTS_TEMPLATE = [
   { title: 'Plagiarism Detection Tool',                description: 'Compares submitted reports against a database using TF-IDF and cosine similarity.', status: 'In Progress' },
   { title: 'Scholarship Management Portal',            description: 'End-to-end portal for applying, tracking, and awarding university scholarships.', status: 'Under Review' },
   { title: 'Real-Time Lecture Q&A Platform',           description: 'Live Q&A tool where students submit questions during class; lecturers upvote and answer.', status: 'Rejected' },
-  { title: 'Graduation Project Tracker',               description: 'Tracks milestones, meetings, and deliverables for final-year projects.', status: 'Completed' },
-  { title: 'Research Paper Summarizer',                description: 'Uses LLMs to generate structured summaries of academic PDFs.', status: 'Pending' },
-  { title: 'Online Exam Anti-Cheat System',            description: 'Proctoring solution using webcam monitoring and tab-switch detection.', status: 'In Progress' },
-  { title: 'University Event Management App',          description: 'Mobile-first app for registering, managing, and streaming university events.', status: 'Approved' },
-  { title: 'Arabic NLP Sentiment Analysis',            description: 'Fine-tuned BERT model for sentiment analysis on Arabic social media data.', status: 'Under Review' },
-  { title: 'Student Carpool Coordination App',         description: 'Matches students living in the same area for daily carpooling using geolocation.', status: 'Pending' },
-  { title: 'Digital Transcript Verification System',   description: 'Blockchain-based system for issuing and verifying academic transcripts.', status: 'In Progress' },
 ];
 
 const SAMPLE_COMMENTS = [
@@ -141,18 +134,44 @@ async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function startProcess() {
   const btn = document.getElementById('runBtn');
-  const email = document.getElementById('seedEmail').value;
-  const pass  = document.getElementById('seedPassword').value;
+  const adminEmail = document.getElementById('seedEmail').value;
+  const adminPass  = document.getElementById('seedPassword').value;
 
   btn.disabled = true;
   document.getElementById('logBox').innerHTML = '';
 
-  logHead('0. Authenticating');
-  log(`Logging in as ${email}...`, 'info');
-  
-  const { data: authData, error: authErr } = await _s.auth.signInWithPassword({
-    email: email,
-    password: pass
+  const randomSuffix = Math.floor(Math.random() * 10000);
+  const DUMMY_USERS = [
+    { email: `dr.khalid_${randomSuffix}@enjaz.demo`, name: 'Dr. Khalid', role: 'doctor' },
+    { email: `dr.sara_${randomSuffix}@enjaz.demo`, name: 'Dr. Sara', role: 'doctor' },
+    { email: `student_ali_${randomSuffix}@enjaz.demo`, name: 'Ali Al-Ghamdi', role: 'student' },
+    { email: `student_nora_${randomSuffix}@enjaz.demo`, name: 'Nora Al-Qahtani', role: 'student' },
+    { email: `student_fahad_${randomSuffix}@enjaz.demo`, name: 'Fahad Al-Dosari', role: 'student' }
+  ];
+
+  // ── 1. Create fresh dummy users to guarantee we have them ──
+  logHead('1. Creating Fresh Demo Accounts');
+  for (const u of DUMMY_USERS) {
+    const { error } = await _s.auth.signUp({
+      email: u.email,
+      password: 'Password123!',
+      options: { data: { name: u.name, role: u.role } }
+    });
+    if (error) {
+      log(`Failed to create ${u.email}: ${error.message}`, 'err');
+    } else {
+      log(`✓ Created ${u.role}: ${u.email}`, 'ok');
+    }
+  }
+
+  log('Waiting 3 seconds for database triggers...', 'info');
+  await sleep(3000);
+
+  // ── 2. Authenticate as the Admin ──
+  logHead('2. Logging in as Admin');
+  const { error: authErr } = await _s.auth.signInWithPassword({
+    email: adminEmail,
+    password: adminPass
   });
 
   if (authErr) {
@@ -160,58 +179,40 @@ async function startProcess() {
     btn.disabled = false;
     return;
   }
-  log('✓ Logged in successfully.', 'ok');
+  log(`✓ Logged in as ${adminEmail}`, 'ok');
 
-  await runSeed();
-}
-
-async function runSeed() {
-  const btn = document.getElementById('runBtn');
-
-  // ── 1. Fetch Existing Profiles ──────────────────────────────
-  logHead('1. Fetching Existing Accounts');
+  // ── 3. Fetch Profiles and Upgrade Admin ──
+  logHead('3. Setting up Roles');
   const { data: profiles, error: pErr } = await _s.from('profiles').select('*');
   
-  if (pErr || !profiles || profiles.length === 0) {
-    log(`✗ Failed to fetch profiles. Error: ${pErr?.message || 'Empty list'}.`, 'err');
-    log('Make sure RLS policies on "profiles" allow authenticated users to select.', 'err');
+  if (pErr || !profiles) {
+    log(`✗ Failed to fetch profiles. Error: ${pErr?.message}`, 'err');
     btn.disabled = false;
     return;
   }
-  
-  log(`Found ${profiles.length} users in the database.`, 'info');
 
-  // ── 2. Assign Roles ─────────────────────────────────────────
-  logHead('2. Assigning Roles');
-  for (const p of profiles) {
-    let newRole = 'student';
-    if (p.email === 'anas.g.algamdi@gmail.com' || p.email === document.getElementById('seedEmail').value) {
-      newRole = 'admin';
-    } else if (p.email.startsWith('dr.')) {
-      newRole = 'doctor';
-    }
-
-    if (p.role !== newRole) {
-      await _s.from('profiles').update({ role: newRole }).eq('id', p.id);
-      log(`✓ Updated role for ${p.email} → ${newRole.toUpperCase()}`, 'ok');
-    } else {
-      log(`- ${p.email} is already ${newRole.toUpperCase()}`, 'info');
-    }
+  // Make the current user an admin
+  const adminProfile = profiles.find(p => p.email === adminEmail);
+  if (adminProfile && adminProfile.role !== 'admin') {
+    await _s.from('profiles').update({ role: 'admin' }).eq('id', adminProfile.id);
+    log(`✓ Upgraded ${adminEmail} to ADMIN`, 'ok');
   }
 
-  // ── 3. Reload Profiles ──────────────────────────────────────
+  // ── 4. Collect Doctors and Students ──
   const { data: finalProfiles } = await _s.from('profiles').select('*');
   const doctors  = finalProfiles.filter(p => p.role === 'doctor');
   const students = finalProfiles.filter(p => p.role === 'student');
 
   if (doctors.length === 0 || students.length === 0) {
-    log('✗ Need at least 1 doctor and 1 student to create projects.', 'err');
+    log('✗ Still missing doctors or students. Something is wrong with the DB triggers.', 'err');
     btn.disabled = false;
     return;
   }
 
-  // ── 4. Create Projects ──────────────────────────────────────
-  logHead('3. Creating Sample Projects');
+  log(`Found ${doctors.length} Doctors and ${students.length} Students.`, 'info');
+
+  // ── 5. Create Projects ──
+  logHead('4. Generating Demo Projects');
   const insertedProjects = [];
   for (let i = 0; i < PROJECTS_TEMPLATE.length; i++) {
     const pt      = PROJECTS_TEMPLATE[i];
@@ -230,28 +231,26 @@ async function runSeed() {
       log(`✗ Failed Project "${pt.title}" — ${error.message}`, 'err');
     } else {
       insertedProjects.push({ ...proj, student, doctor });
-      log(`✓ "${pt.title}" assigned to ${student.email} (Sup: ${doctor.email})`, 'ok');
+      log(`✓ "${pt.title}" → By: ${student.name} | Sup: ${doctor.name}`, 'ok');
     }
-    await sleep(150);
   }
 
-  // ── 5. Add Sample Comments ──────────────────────────────────
-  logHead('4. Adding Sample Comments');
-  for (const proj of insertedProjects.slice(0, 8)) {
+  // ── 6. Add Comments ──
+  logHead('5. Adding Sample Comments');
+  for (const proj of insertedProjects.slice(0, 5)) {
     const comment = SAMPLE_COMMENTS[Math.floor(Math.random() * SAMPLE_COMMENTS.length)];
     await _s.from('comments').insert({
       project_id: proj.id,
       author_id:  proj.doctor.id,
       body:       comment
     });
-    log(`✓ Added comment on "${proj.title.substring(0,20)}…"`, 'ok');
-    await sleep(100);
+    log(`✓ Comment added by ${proj.doctor.name} on "${proj.title.substring(0,20)}…"`, 'ok');
   }
 
-  // ── 6. Done ─────────────────────────────────────────────────
-  logHead('Seed Complete');
-  log(`✅ Roles updated, ${insertedProjects.length} projects created.`, 'ok');
-  btn.textContent = '✅ Done! Open main app to log in.';
+  // ── 7. Done ──
+  logHead('Seed Complete 🎉');
+  log('You can now open the main Enjaz platform and enjoy the full experience!', 'ok');
+  btn.textContent = '✅ All Done! Go to Platform';
 }
 </script>
 </body>
