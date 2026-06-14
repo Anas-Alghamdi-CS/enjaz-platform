@@ -69,13 +69,8 @@
   </div>
 
   <form id="seedForm" class="login-box" onsubmit="event.preventDefault(); startProcess();">
-    <div>
-      <label>Your Admin Email</label>
-      <input type="email" id="seedEmail" placeholder="admin@enjaz.demo" required>
-    </div>
-    <div>
-      <label>Your Password</label>
-      <input type="password" id="seedPassword" placeholder="••••••••" required>
+    <div style="text-align: center; color: #94a3b8; font-size: 0.9rem; margin-bottom: 10px;">
+      Just click the button below. No login required!
     </div>
     <button type="submit" class="btn-run" id="runBtn">
       🚀 Generate Complete Demo Data
@@ -134,13 +129,11 @@ async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function startProcess() {
   const btn = document.getElementById('runBtn');
-  const adminEmail = document.getElementById('seedEmail').value;
-  const adminPass  = document.getElementById('seedPassword').value;
-
   btn.disabled = true;
   document.getElementById('logBox').innerHTML = '';
 
   const DUMMY_USERS = [
+    { email: `admin@enjaz.demo`, name: 'Admin Enjaz', role: 'admin' },
     { email: `dr.khalid.demo@enjaz.com`, name: 'Dr. Khalid', role: 'doctor' },
     { email: `dr.sara.demo@enjaz.com`, name: 'Dr. Sara', role: 'doctor' },
     { email: `student.ali.demo@enjaz.com`, name: 'Ali Al-Ghamdi', role: 'student' },
@@ -166,22 +159,8 @@ async function startProcess() {
   log('Waiting 3 seconds for database triggers...', 'info');
   await sleep(3000);
 
-  // ── 2. Authenticate as the Admin ──
-  logHead('2. Logging in as Admin');
-  const { error: authErr } = await _s.auth.signInWithPassword({
-    email: adminEmail,
-    password: adminPass
-  });
-
-  if (authErr) {
-    log(`✗ Login failed: ${authErr.message}`, 'err');
-    btn.disabled = false;
-    return;
-  }
-  log(`✓ Logged in as ${adminEmail}`, 'ok');
-
-  // ── 3. Fetch Profiles and Upgrade Admin ──
-  logHead('3. Setting up Roles');
+  // ── 2. Setup Roles ──
+  logHead('2. Setting up Roles');
   const { data: profiles, error: pErr } = await _s.from('profiles').select('*');
   
   if (pErr || !profiles) {
@@ -190,14 +169,14 @@ async function startProcess() {
     return;
   }
 
-  // Make the current user an admin
-  const adminProfile = profiles.find(p => p.email === adminEmail);
+  // Make sure admin is set
+  const adminProfile = profiles.find(p => p.email === 'admin@enjaz.demo');
   if (adminProfile && adminProfile.role !== 'admin') {
     await _s.from('profiles').update({ role: 'admin' }).eq('id', adminProfile.id);
-    log(`✓ Upgraded ${adminEmail} to ADMIN`, 'ok');
+    log(`✓ Upgraded Admin role`, 'ok');
   }
 
-  // ── 4. Collect Doctors and Students ──
+  // ── 3. Collect Doctors and Students ──
   const { data: finalProfiles } = await _s.from('profiles').select('*');
   const doctors  = finalProfiles.filter(p => p.role === 'doctor');
   const students = finalProfiles.filter(p => p.role === 'student');
