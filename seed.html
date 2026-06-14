@@ -140,13 +140,12 @@ async function startProcess() {
   btn.disabled = true;
   document.getElementById('logBox').innerHTML = '';
 
-  const randomSuffix = Math.floor(Math.random() * 10000);
   const DUMMY_USERS = [
-    { email: `dr.khalid_${randomSuffix}@enjaz.demo`, name: 'Dr. Khalid', role: 'doctor' },
-    { email: `dr.sara_${randomSuffix}@enjaz.demo`, name: 'Dr. Sara', role: 'doctor' },
-    { email: `student_ali_${randomSuffix}@enjaz.demo`, name: 'Ali Al-Ghamdi', role: 'student' },
-    { email: `student_nora_${randomSuffix}@enjaz.demo`, name: 'Nora Al-Qahtani', role: 'student' },
-    { email: `student_fahad_${randomSuffix}@enjaz.demo`, name: 'Fahad Al-Dosari', role: 'student' }
+    { email: `dr.khalid.demo@enjaz.com`, name: 'Dr. Khalid', role: 'doctor' },
+    { email: `dr.sara.demo@enjaz.com`, name: 'Dr. Sara', role: 'doctor' },
+    { email: `student.ali.demo@enjaz.com`, name: 'Ali Al-Ghamdi', role: 'student' },
+    { email: `student.nora.demo@enjaz.com`, name: 'Nora Al-Qahtani', role: 'student' },
+    { email: `student.fahad.demo@enjaz.com`, name: 'Fahad Al-Dosari', role: 'student' }
   ];
 
   // ── 1. Create fresh dummy users to guarantee we have them ──
