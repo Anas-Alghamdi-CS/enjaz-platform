@@ -26,43 +26,48 @@ function initSupabase() {
 /* ── Boot ───────────────────────────────────────────────── */
 window.addEventListener('DOMContentLoaded', async () => {
     applyStoredTheme();
-    await sleep(2000);
+    await sleep(1200);
     document.getElementById('splashScreen').classList.add('fade-out');
     await sleep(500);
     document.getElementById('splashScreen').classList.add('hidden');
 
-    if (initSupabase()) {
-        // فحص الجلسة بشكل صريح ومباشر حتى لا يعلق
-        const { data: { session } } = await _supabase.auth.getSession();
-        
-        if (session?.user) {
-            currentUser = session.user;
-            await loadUserMeta(session.user);
-            showDashboard();
-        } else {
-            currentUser     = null;
-            currentUserMeta = {};
-            showAuth();
-        }
-
-        _supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-                if (session?.user) {
-                    currentUser = session.user;
-                    await loadUserMeta(session.user);
-                    showDashboard();
-                } else {
-                    currentUser     = null;
-                    currentUserMeta = {};
-                    showAuth();
-                }
-            }
-        });
-    } else {
-        showAuth(); // أظهر شاشة الدخول في كل الأحوال لتجنب الشاشة الفارغة
-        showAuthError('loginError', 'Failed to connect to database.');
+    if (!initSupabase()) {
+        // Always show the auth screen so the user never sees a blank page
+        showAuth();
+        showAuthError('loginError', 'Failed to connect to the database.');
+        return;
     }
+
+    try {
+        const { data: { session } } = await _supabase.auth.getSession();
+        await applySession(session);
+    } catch (e) {
+        console.error('Session restore failed:', e);
+        showAuth();
+    }
+
+    _supabase.auth.onAuthStateChange((event, session) => {
+        if (event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') return;
+        // SIGNED_IN also fires on tab refocus; ignore it when the same user is already loaded
+        if (event === 'SIGNED_IN' && session?.user?.id === currentUser?.id) return;
+        // Defer to avoid deadlocking the Supabase auth lock from inside the callback
+        setTimeout(() => applySession(session), 0);
+    });
 });
+
+async function applySession(session) {
+    if (session?.user) {
+        currentUser = session.user;
+        await loadUserMeta(session.user);
+        showDashboard();
+    } else {
+        stopRealtime();
+        currentUser     = null;
+        currentUserMeta = {};
+        activeProjectId = null;
+        showAuth();
+    }
+}
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -95,10 +100,17 @@ async function handleLogin() {
     const email = document.getElementById('loginEmail').value.trim();
     const pass  = document.getElementById('loginPassword').value;
     clearAuthErrors();
+    if (!email || !pass) return showAuthError('loginError', 'Please enter your email and password.');
     setAuthLoading('loginBtn', true);
-    const { error } = await _supabase.auth.signInWithPassword({ email, password: pass });
-    if (error) showAuthError('loginError', 'Invalid email or password.');
-    setAuthLoading('loginBtn', false);
+    try {
+        const { error } = await _supabase.auth.signInWithPassword({ email, password: pass });
+        if (error) showAuthError('loginError', 'Invalid email or password.');
+    } catch (e) {
+        console.error('Login failed:', e);
+        showAuthError('loginError', 'Network error. Please try again.');
+    } finally {
+        setAuthLoading('loginBtn', false);
+    }
 }
 
 async function handleSignup() {
@@ -107,25 +119,37 @@ async function handleSignup() {
     const pass  = document.getElementById('signupPassword').value;
     const role  = document.getElementById('signupRole').value;
     clearAuthErrors();
+    if (!name || !email) return showAuthError('signupError', 'Please enter your name and email.');
     if (pass.length < 6) return showAuthError('signupError', 'Password must be at least 6 characters.');
     setAuthLoading('signupBtn', true);
-    const { error } = await _supabase.auth.signUp({
-        email, password: pass,
-        options: { data: { name, role } }
-    });
-    if (error) {
-        showAuthError('signupError', error.message.includes('already') ? 'Email already registered.' : 'Sign up failed. Check your details.');
-    } else {
-        const el = document.getElementById('signupSuccess');
-        el.classList.remove('hidden');
-        el.textContent = 'Account created! Sign in now.';
-        setTimeout(() => toggleAuth('login'), 2000);
+    try {
+        const { error } = await _supabase.auth.signUp({
+            email, password: pass,
+            options: { data: { name, role } }
+        });
+        if (error) {
+            showAuthError('signupError', error.message.includes('already') ? 'Email already registered.' : 'Sign up failed. Check your details.');
+        } else {
+            const el = document.getElementById('signupSuccess');
+            el.classList.remove('hidden');
+            el.textContent = 'Account created! Sign in now.';
+            setTimeout(() => toggleAuth('login'), 2000);
+        }
+    } catch (e) {
+        console.error('Signup failed:', e);
+        showAuthError('signupError', 'Network error. Please try again.');
+    } finally {
+        setAuthLoading('signupBtn', false);
     }
-    setAuthLoading('signupBtn', false);
 }
 
 async function handleLogout() {
-    if (_supabase) await _supabase.auth.signOut();
+    try {
+        if (_supabase) await _supabase.auth.signOut();
+    } catch (e) {
+        console.error('Logout failed:', e);
+        showToast('Failed to sign out', 'error');
+    }
 }
 
 function setAuthLoading(btnId, loading) {
@@ -143,11 +167,17 @@ function showAuthError(id, msg) {
 
 /* ── User Metadata ──────────────────────────────────────── */
 async function loadUserMeta(user) {
-    const { data } = await _supabase
-        .from('profiles')
-        .select('name, role, email')
-        .eq('id', user.id)
-        .single();
+    let data = null;
+    try {
+        const res = await _supabase
+            .from('profiles')
+            .select('name, role, email')
+            .eq('id', user.id)
+            .maybeSingle();
+        data = res.data;
+    } catch (e) {
+        console.error('Profile load failed:', e);
+    }
     currentUserMeta = data || {
         name:  user.user_metadata?.name  || user.email.split('@')[0],
         role:  user.user_metadata?.role  || 'student',
@@ -199,6 +229,57 @@ function buildDashboard() {
     }
 
     loadNotificationCount();
+    startRealtime();
+}
+
+/* ── Realtime (comments + notifications) ────────────────── */
+let realtimeChannel = null;
+let notifPollTimer  = null;
+
+function startRealtime() {
+    stopRealtime();
+    try {
+        realtimeChannel = _supabase.channel(`enjaz-${currentUser.id}`)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, payload => {
+                if (payload.new?.project_id === activeProjectId) loadComments(activeProjectId);
+            })
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications',
+                                      filter: `user_id=eq.${currentUser.id}` }, () => loadNotificationCount())
+            .subscribe();
+    } catch (e) {
+        console.error('Realtime unavailable:', e);
+    }
+    // Polling fallback in case Realtime is not enabled for these tables
+    notifPollTimer = setInterval(() => {
+        loadNotificationCount();
+        if (activeProjectId) loadComments(activeProjectId);
+    }, 30000);
+}
+
+function stopRealtime() {
+    if (realtimeChannel) { _supabase?.removeChannel(realtimeChannel); realtimeChannel = null; }
+    if (notifPollTimer)  { clearInterval(notifPollTimer); notifPollTimer = null; }
+}
+
+/* Fetch a { id: profile } map for the given ids only */
+async function fetchProfileMap(ids) {
+    const unique = [...new Set(ids.filter(Boolean))];
+    if (!unique.length) return {};
+    const { data, error } = await _supabase.from('profiles').select('id, name, email, role').in('id', unique);
+    if (error) throw error;
+    return Object.fromEntries((data || []).map(p => [p.id, p]));
+}
+
+/* Insert a notification without ever blocking the main action */
+async function notify(userId, message, linkId = null, linkType = 'project') {
+    if (!userId) return;
+    try {
+        const { error } = await _supabase.from('notifications')
+            .insert({ user_id: userId, message, link_type: linkType, link_id: linkId });
+        if (error) throw error;
+    } catch (e) {
+        console.error('Notification insert failed:', e);
+    }
 }
 
 function roleLabel(role) {
@@ -225,31 +306,37 @@ function navigate(viewId, el) {
 
 /* ── Student View ───────────────────────────────────────── */
 async function loadStudentView() {
-    const { data: doctors } = await _supabase
-        .from('profiles').select('id, name').eq('role', 'doctor');
+    try {
+        const { data: doctors, error: docErr } = await _supabase
+            .from('profiles').select('id, name').eq('role', 'doctor');
+        if (docErr) throw docErr;
 
-    const picker = document.getElementById('projectDoctorPicker');
-    if (picker) {
-        picker.innerHTML = '<option value="">— Select Supervisor —</option>' +
-            (doctors || []).map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('');
+        const picker = document.getElementById('projectDoctorPicker');
+        if (picker) {
+            const keep = picker.value;
+            picker.innerHTML = '<option value="">— Select Supervisor —</option>' +
+                (doctors || []).map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('');
+            picker.value = keep;
+        }
+
+        const { data: projectsData, error: projErr } = await _supabase
+            .from('projects')
+            .select('*')
+            .eq('student_id', currentUser.id)
+            .order('created_at', { ascending: false });
+        if (projErr) throw projErr;
+
+        const map = await fetchProfileMap((projectsData || []).map(p => p.doctor_id));
+        const projects = (projectsData || []).map(p => ({
+            ...p,
+            profiles: { name: map[p.doctor_id]?.name || 'Unknown Doctor' }
+        }));
+
+        renderStudentProjects(projects);
+    } catch (e) {
+        console.error('Student view failed:', e);
+        showToast('Failed to load your projects', 'error');
     }
-
-    const { data: projectsData, error: projErr } = await _supabase
-        .from('projects')
-        .select('*')
-        .eq('student_id', currentUser.id)
-        .order('created_at', { ascending: false });
-
-    if (projErr) console.error("Projects error:", projErr);
-
-    const { data: profiles } = await _supabase.from('profiles').select('id, name');
-
-    const projects = (projectsData || []).map(p => ({
-        ...p,
-        profiles: { name: profiles?.find(prof => prof.id === p.doctor_id)?.name || 'Unknown Doctor' }
-    }));
-
-    renderStudentProjects(projects || []);
 }
 
 function renderStudentProjects(projects) {
@@ -319,51 +406,52 @@ async function submitProject() {
     const btn = document.getElementById('submitProjectBtn');
     btn.disabled = true;
 
-    const { data, error } = await _supabase
-        .from('projects')
-        .insert({ title, description: desc, student_id: currentUser.id, doctor_id: doctorId, status: 'Pending' })
-        .select().single();
+    try {
+        const { data, error } = await _supabase
+            .from('projects')
+            .insert({ title, description: desc, student_id: currentUser.id, doctor_id: doctorId, status: 'Pending' })
+            .select().single();
+        if (error) throw error;
 
-    if (error) {
-        showToast('Failed to submit project', 'error');
-    } else {
         document.getElementById('projectTitle').value = '';
         document.getElementById('projectDesc').value  = '';
         document.getElementById('projectDoctorPicker').value = '';
         showToast('Project submitted successfully!');
-        await _supabase.from('notifications').insert({
-            user_id:   doctorId,
-            message:   `New project "${title}" submitted by ${currentUserMeta.name} — awaiting your review.`,
-            link_type: 'project',
-            link_id:   data.id
-        });
+        await notify(doctorId, `New project "${title}" submitted by ${currentUserMeta.name} — awaiting your review.`, data.id);
         loadStudentView();
+    } catch (e) {
+        console.error('Submit project failed:', e);
+        showToast('Failed to submit project', 'error');
+    } finally {
+        btn.disabled = false;
     }
-    btn.disabled = false;
 }
 
 /* ── Doctor View ────────────────────────────────────────── */
 async function loadDoctorView() {
-    const { data: projectsData, error: projErr } = await _supabase
-        .from('projects')
-        .select('*')
-        .eq('doctor_id', currentUser.id)
-        .order('created_at', { ascending: false });
+    try {
+        const { data: projectsData, error: projErr } = await _supabase
+            .from('projects')
+            .select('*')
+            .eq('doctor_id', currentUser.id)
+            .order('created_at', { ascending: false });
+        if (projErr) throw projErr;
 
-    if (projErr) console.error("Projects error:", projErr);
+        const map = await fetchProfileMap((projectsData || []).map(p => p.student_id));
+        const projects = (projectsData || []).map(p => ({
+            ...p,
+            profiles: {
+                name:  map[p.student_id]?.name  || 'Unknown Student',
+                email: map[p.student_id]?.email || ''
+            }
+        }));
 
-    const { data: profiles } = await _supabase.from('profiles').select('id, name, email');
-
-    const projects = (projectsData || []).map(p => ({
-        ...p,
-        profiles: { 
-            name: profiles?.find(prof => prof.id === p.student_id)?.name || 'Unknown Student',
-            email: profiles?.find(prof => prof.id === p.student_id)?.email || ''
-        }
-    }));
-
-    renderDoctorStats(projects || []);
-    renderDoctorProjects(projects || []);
+        renderDoctorStats(projects);
+        renderDoctorProjects(projects);
+    } catch (e) {
+        console.error('Doctor view failed:', e);
+        showToast('Failed to load supervised projects', 'error');
+    }
 }
 
 function renderDoctorStats(projects) {
@@ -412,34 +500,57 @@ function renderDoctorProjects(projects) {
                 <span class="actions-label">Change Status:</span>
                 ${['In Progress','Under Review','Approved','Rejected','Completed'].map(s =>
                     `<button class="status-action-btn ${s === p.status ? 'active-status' : ''}"
-                        onclick="quickChangeStatus('${p.id}','${s}','${p.student_id}','${esc(p.title)}')">${s}</button>`
+                        onclick="quickChangeStatus('${p.id}','${s}')">${s}</button>`
                 ).join('')}
             </div>
         </div>
     `).join('');
 }
 
-async function quickChangeStatus(projectId, newStatus, studentId, title) {
+async function quickChangeStatus(projectId, newStatus) {
+    // Rejection needs a written reason, so route it through the detail modal
     if (newStatus === 'Rejected') {
         openProjectDetail(projectId, true);
         return;
     }
-    const { error } = await _supabase
-        .from('projects')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', projectId);
+    if (await applyStatusChange(projectId, newStatus)) loadDoctorView();
+}
 
-    if (!error) {
-        showToast(`Status → "${newStatus}"`);
-        await _supabase.from('notifications').insert({
-            user_id:   studentId,
-            message:   `Your project "${title}" status changed to "${newStatus}" by your supervisor.`,
-            link_type: 'project',
-            link_id:   projectId
-        });
-        loadDoctorView();
-    } else {
+/* Single source of truth for status changes. Enforces the rejection-reason rule. */
+async function applyStatusChange(projectId, newStatus, reason = '') {
+    try {
+        if (newStatus === 'Rejected' && !reason.trim()) {
+            showToast('A rejection reason is required.', 'error', 4000);
+            return false;
+        }
+
+        const { data: p, error: pErr } = await _supabase
+            .from('projects').select('student_id, title').eq('id', projectId).single();
+        if (pErr) throw pErr;
+
+        // Save the reason first so a rejection is never applied without one
+        if (newStatus === 'Rejected') {
+            const { error: cErr } = await _supabase.from('comments').insert({
+                project_id: projectId,
+                author_id:  currentUser.id,
+                body: `⚠️ Rejection Reason: ${reason.trim()}`
+            });
+            if (cErr) throw cErr;
+        }
+
+        const { error } = await _supabase
+            .from('projects')
+            .update({ status: newStatus, updated_at: new Date().toISOString() })
+            .eq('id', projectId);
+        if (error) throw error;
+
+        showToast(`Status updated to "${newStatus}"`);
+        await notify(p.student_id, `Your project "${p.title}" status changed to "${newStatus}".`, projectId);
+        return true;
+    } catch (e) {
+        console.error('Status change failed:', e);
         showToast('Failed to update status', 'error');
+        return false;
     }
 }
 
@@ -448,34 +559,36 @@ async function openProjectDetail(projectId, forceRejectComment = false) {
     activeProjectId = projectId;
     const modal = document.getElementById('projectDetailModal');
     modal.classList.remove('hidden');
+    delete document.getElementById('commentsContainer').dataset.loaded;
     document.getElementById('commentsContainer').innerHTML =
         `<div style="text-align:center;padding:30px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i></div>`;
 
-    const { data: pData, error: pErr } = await _supabase
-        .from('projects')
-        .select('*')
-        .eq('id', projectId)
-        .single();
-        
-    if (pErr) console.error("Project View error:", pErr);
-    
-    const { data: profiles } = await _supabase.from('profiles').select('id, name, email');
-    
-    let p = pData;
-    if (p) {
-        p.student = { 
-            name: profiles?.find(prof => prof.id === p.student_id)?.name || 'Unknown',
-            email: profiles?.find(prof => prof.id === p.student_id)?.email || ''
-        };
-        p.doctor = { name: profiles?.find(prof => prof.id === p.doctor_id)?.name || 'Unknown' };
-    }
+    let p;
+    try {
+        const { data: pData, error: pErr } = await _supabase
+            .from('projects')
+            .select('*')
+            .eq('id', projectId)
+            .single();
+        if (pErr) throw pErr;
 
-    if (!p) { closeProjectDetail(); return; }
+        const map = await fetchProfileMap([pData.student_id, pData.doctor_id]);
+        p = {
+            ...pData,
+            student: { name: map[pData.student_id]?.name || 'Unknown', email: map[pData.student_id]?.email || '' },
+            doctor:  { name: map[pData.doctor_id]?.name  || 'Unknown' }
+        };
+    } catch (e) {
+        console.error('Project detail failed:', e);
+        showToast('Failed to load project', 'error');
+        closeProjectDetail();
+        return;
+    }
 
     document.getElementById('modalProjectTitle').textContent  = p.title;
     document.getElementById('modalProjectDesc').textContent   = p.description || '—';
     document.getElementById('modalProjectStatus').innerHTML   =
-        `<span class="status-badge status-${p.status.replace(/\s/g,'-')}">${statusEmoji(p.status)} ${p.status}</span>`;
+        `<span class="status-badge status-${p.status.replace(/\s/g,'-')}">${statusEmoji(p.status)} ${esc(p.status)}</span>`;
     document.getElementById('modalProjectMeta').innerHTML = `
         <span><i class="fas fa-user-graduate"></i> ${esc(p.student?.name || '—')}</span>
         <span><i class="fas fa-user-tie"></i> ${esc(p.doctor?.name || 'Unassigned')}</span>
@@ -490,7 +603,7 @@ async function openProjectDetail(projectId, forceRejectComment = false) {
             <span class="actions-label">Change Status:</span>
             ${['In Progress','Under Review','Approved','Rejected','Completed'].map(s =>
                 `<button class="status-action-btn ${s === p.status ? 'active-status' : ''}"
-                    onclick="changeStatusFromModal('${p.id}','${s}','${p.student_id}','${esc(p.title)}')">${s}</button>`
+                    onclick="changeStatusFromModal('${p.id}','${s}')">${s}</button>`
             ).join('')}
         </div>` : '';
 
@@ -510,66 +623,60 @@ function closeProjectDetail() {
     activeProjectId = null;
 }
 
-async function changeStatusFromModal(projectId, newStatus, studentId, title) {
-    if (newStatus === 'Rejected') {
-        const body = document.getElementById('commentInput').value.trim();
-        if (!body) {
-            showToast('Please write a rejection reason in the comments box first.', 'error', 4000);
-            document.getElementById('commentInput').focus();
-            return;
-        }
-        await _supabase.from('comments').insert({
-            project_id: projectId,
-            author_id:  currentUser.id,
-            body: `⚠️ Rejection Reason: ${body}`
-        });
-        document.getElementById('commentInput').value = '';
+async function changeStatusFromModal(projectId, newStatus) {
+    const input  = document.getElementById('commentInput');
+    const reason = newStatus === 'Rejected' ? input.value.trim() : '';
+
+    if (newStatus === 'Rejected' && !reason) {
+        showToast('Please write a rejection reason in the comments box first.', 'error', 4000);
+        input.focus();
+        return;
     }
 
-    const { error } = await _supabase
-        .from('projects')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', projectId);
-
-    if (!error) {
-        showToast(`Status updated to "${newStatus}"`);
-        await _supabase.from('notifications').insert({
-            user_id:   studentId,
-            message:   `Your project "${title}" status changed to "${newStatus}".`,
-            link_type: 'project',
-            link_id:   projectId
-        });
+    if (await applyStatusChange(projectId, newStatus, reason)) {
+        if (newStatus === 'Rejected') input.value = '';
         openProjectDetail(projectId);
         if (currentUserMeta.role === 'doctor') loadDoctorView();
         if (currentUserMeta.role === 'admin')  loadAdminView();
-    } else {
-        showToast('Failed to update status', 'error');
     }
 }
 
 async function loadComments(projectId) {
-    const { data: comments } = await _supabase
-        .from('comments')
-        .select('id, body, created_at, author_id, profiles(name, role)')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: true });
-
     const container = document.getElementById('commentsContainer');
-    if (!comments?.length) {
-        container.innerHTML = `<p class="no-comments-msg">No comments yet. Start the conversation!</p>`;
-        return;
+    try {
+        const { data: comments, error } = await _supabase
+            .from('comments')
+            .select('id, body, created_at, author_id')
+            .eq('project_id', projectId)
+            .order('created_at', { ascending: true });
+        if (error) throw error;
+        if (projectId !== activeProjectId) return; // modal moved on while we were fetching
+
+        if (!comments?.length) {
+            container.innerHTML = `<p class="no-comments-msg">No comments yet. Start the conversation!</p>`;
+            return;
+        }
+        // Join authors in JS to avoid relying on a foreign-key relationship name
+        const map = await fetchProfileMap(comments.map(c => c.author_id));
+        const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+
+        container.innerHTML = comments.map(c => {
+            const author  = map[c.author_id];
+            const isMe    = c.author_id === currentUser.id;
+            const roleTag = author?.role === 'doctor' ? '👨‍🏫' : author?.role === 'admin' ? '🔑' : '🎓';
+            return `
+                <div class="comment-bubble ${isMe ? 'comment-mine' : 'comment-other'}">
+                    <div class="comment-author">${roleTag} ${esc(author?.name || 'User')}</div>
+                    <div class="comment-body" dir="auto">${esc(c.body)}</div>
+                    <div class="comment-time">${formatDate(c.created_at, true)}</div>
+                </div>`;
+        }).join('');
+        if (nearBottom || !container.dataset.loaded) container.scrollTop = container.scrollHeight;
+        container.dataset.loaded = '1';
+    } catch (e) {
+        console.error('Comments load failed:', e);
+        container.innerHTML = `<p class="no-comments-msg">Could not load comments.</p>`;
     }
-    container.innerHTML = comments.map(c => {
-        const isMe    = c.author_id === currentUser.id;
-        const roleTag = c.profiles?.role === 'doctor' ? '👨‍🏫' : c.profiles?.role === 'admin' ? '🔑' : '🎓';
-        return `
-            <div class="comment-bubble ${isMe ? 'comment-mine' : 'comment-other'}">
-                <div class="comment-author">${roleTag} ${esc(c.profiles?.name || 'User')}</div>
-                <div class="comment-body">${esc(c.body)}</div>
-                <div class="comment-time">${formatDate(c.created_at, true)}</div>
-            </div>`;
-    }).join('');
-    container.scrollTop = container.scrollHeight;
 }
 
 async function sendComment() {
@@ -581,54 +688,60 @@ async function sendComment() {
     const btn = document.getElementById('sendCommentBtn');
     btn.disabled = true;
 
-    const { error } = await _supabase.from('comments').insert({
-        project_id: activeProjectId,
-        author_id:  currentUser.id,
-        body
-    });
+    const projectId = activeProjectId;
+    try {
+        const { error } = await _supabase.from('comments').insert({
+            project_id: projectId,
+            author_id:  currentUser.id,
+            body
+        });
+        if (error) throw error;
 
-    if (!error) {
         input.value = '';
         const { data: p } = await _supabase
-            .from('projects').select('student_id, doctor_id, title').eq('id', activeProjectId).single();
+            .from('projects').select('student_id, doctor_id, title').eq('id', projectId).single();
         if (p) {
-            const notifyId = currentUser.id === p.student_id ? p.doctor_id : p.student_id;
-            if (notifyId) {
-                await _supabase.from('notifications').insert({
-                    user_id:   notifyId,
-                    message:   `${currentUserMeta.name} left a comment on "${p.title}".`,
-                    link_type: 'project',
-                    link_id:   activeProjectId
-                });
-            }
+            // Notify every participant except the author (covers admin comments too)
+            const recipients = [p.student_id, p.doctor_id].filter(id => id && id !== currentUser.id);
+            await Promise.all(recipients.map(id =>
+                notify(id, `${currentUserMeta.name} left a comment on "${p.title}".`, projectId)));
         }
-        loadComments(activeProjectId);
+        loadComments(projectId);
         loadNotificationCount();
-    } else {
+    } catch (e) {
+        console.error('Send comment failed:', e);
         showToast('Failed to send comment', 'error');
+    } finally {
+        btn.disabled = false;
     }
-    btn.disabled = false;
 }
 
 /* ── Admin View ─────────────────────────────────────────── */
 async function loadAdminView() {
-    const [{ data: profiles }, { data: projectsData, error: projErr }] = await Promise.all([
-        _supabase.from('profiles').select('*').order('role'),
-        _supabase.from('projects').select('*').order('created_at', { ascending: false })
-    ]);
+    try {
+        const [profRes, projRes] = await Promise.all([
+            _supabase.from('profiles').select('*').order('role'),
+            _supabase.from('projects').select('*').order('created_at', { ascending: false })
+        ]);
+        if (profRes.error) throw profRes.error;
+        if (projRes.error) throw projRes.error;
 
-    if (projErr) console.error("Admin Projects error:", projErr);
+        const profiles = profRes.data || [];
+        const byId     = Object.fromEntries(profiles.map(p => [p.id, p]));
+        const projects = (projRes.data || []).map(p => ({
+            ...p,
+            student: { name: byId[p.student_id]?.name || 'Unknown' },
+            doctor:  { name: byId[p.doctor_id]?.name  || 'Unknown' }
+        }));
 
-    const projects = (projectsData || []).map(p => ({
-        ...p,
-        student: { name: profiles?.find(prof => prof.id === p.student_id)?.name || 'Unknown' },
-        doctor: { name: profiles?.find(prof => prof.id === p.doctor_id)?.name || 'Unknown' }
-    }));
-
-    renderAdminStats(profiles || [], projects || []);
-    renderUsersTable(profiles || []);
-    renderAdminProjectsTable(projects || []);
-    renderAdminChart(projects || []);
+        renderAdminStats(profiles, projects);
+        renderUsersTable(profiles);
+        renderAdminProjectsTable(projects);
+        renderAdminChart(projects);
+    } catch (e) {
+        console.error('Admin view failed:', e);
+        showToast('Failed to load admin data', 'error');
+    }
 }
 
 function renderAdminStats(profiles, projects) {
@@ -681,9 +794,16 @@ function renderUsersTable(profiles) {
 }
 
 async function changeUserRole(userId, newRole) {
-    const { error } = await _supabase.from('profiles').update({ role: newRole }).eq('id', userId);
-    if (!error) showToast(`Role updated to ${roleLabel(newRole)}`);
-    else        showToast('Failed to update role', 'error');
+    try {
+        const { error } = await _supabase.from('profiles').update({ role: newRole }).eq('id', userId);
+        if (error) throw error;
+        showToast(`Role updated to ${roleLabel(newRole)}`);
+        loadAdminView();
+    } catch (e) {
+        console.error('Role change failed:', e);
+        showToast('Failed to update role', 'error');
+        loadAdminView(); // reset the dropdown to the stored role
+    }
 }
 
 function renderAdminProjectsTable(projects) {
@@ -712,9 +832,15 @@ function renderAdminProjectsTable(projects) {
 
 async function adminDeleteProject(id) {
     if (!confirm('Delete this project permanently? This action cannot be undone.')) return;
-    const { error } = await _supabase.from('projects').delete().eq('id', id);
-    if (!error) { showToast('Project deleted'); loadAdminView(); }
-    else          showToast('Failed to delete project', 'error');
+    try {
+        const { error } = await _supabase.from('projects').delete().eq('id', id);
+        if (error) throw error;
+        showToast('Project deleted');
+        loadAdminView();
+    } catch (e) {
+        console.error('Delete project failed:', e);
+        showToast('Failed to delete project', 'error');
+    }
 }
 
 function renderAdminChart(projects) {
@@ -734,14 +860,22 @@ function renderAdminChart(projects) {
                 data: counts,
                 backgroundColor: colors,
                 borderWidth: 3,
-                borderColor: 'var(--card-bg)'
+                // Canvas cannot resolve CSS variables, so read the computed value
+                borderColor: getComputedStyle(document.documentElement).getPropertyValue('--card-bg').trim() || '#fff'
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { position: 'bottom', labels: { padding: 16, font: { size: 12 } } }
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 16,
+                        font: { size: 12 },
+                        color: getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim()
+                    }
+                }
             }
         }
     });
@@ -754,38 +888,47 @@ async function sendAnnouncement() {
     const btn = document.getElementById('sendAnnouncementBtn');
     btn.disabled = true;
 
-    const { data: profiles } = await _supabase.from('profiles').select('id');
-    if (!profiles?.length) { btn.disabled = false; return; }
+    try {
+        const { data: profiles, error: pErr } = await _supabase.from('profiles').select('id');
+        if (pErr) throw pErr;
+        if (!profiles?.length) return showToast('No users to notify', 'error');
 
-    const inserts = profiles.map(p => ({
-        user_id: p.id, message: `📢 ${msg}`, link_type: 'announcement', is_read: false
-    }));
+        const inserts = profiles.map(p => ({
+            user_id: p.id, message: `📢 ${msg}`, link_type: 'announcement', is_read: false
+        }));
+        const { error } = await _supabase.from('notifications').insert(inserts);
+        if (error) throw error;
 
-    const { error } = await _supabase.from('notifications').insert(inserts);
-    if (!error) {
         document.getElementById('announcementText').value = '';
         showToast(`Announcement sent to ${profiles.length} users!`);
-    } else {
+    } catch (e) {
+        console.error('Announcement failed:', e);
         showToast('Failed to send announcement', 'error');
+    } finally {
+        btn.disabled = false;
     }
-    btn.disabled = false;
 }
 
 /* ── Notifications ──────────────────────────────────────── */
 async function loadNotificationCount() {
     if (!currentUser) return;
-    const { count } = await _supabase
-        .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', currentUser.id)
-        .eq('is_read', false);
+    try {
+        const { count, error } = await _supabase
+            .from('notifications')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', currentUser.id)
+            .eq('is_read', false);
+        if (error) throw error;
 
-    const badge = document.getElementById('notifBadge');
-    if (count > 0) {
-        badge.textContent = count > 9 ? '9+' : count;
-        badge.classList.remove('hidden');
-    } else {
-        badge.classList.add('hidden');
+        const badge = document.getElementById('notifBadge');
+        if (count > 0) {
+            badge.textContent = count > 9 ? '9+' : count;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    } catch (e) {
+        console.error('Notification count failed:', e);
     }
 }
 
@@ -797,14 +940,22 @@ async function toggleNotifications() {
     }
     panel.classList.remove('hidden');
 
-    const { data: notifs } = await _supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', currentUser.id)
-        .order('created_at', { ascending: false })
-        .limit(25);
-
     const container = document.getElementById('notifList');
+    let notifs;
+    try {
+        const res = await _supabase
+            .from('notifications')
+            .select('*')
+            .eq('user_id', currentUser.id)
+            .order('created_at', { ascending: false })
+            .limit(25);
+        if (res.error) throw res.error;
+        notifs = res.data;
+    } catch (e) {
+        console.error('Notifications load failed:', e);
+        container.innerHTML = `<p class="notif-empty">Could not load notifications.</p>`;
+        return;
+    }
     if (!notifs?.length) {
         container.innerHTML = `<p class="notif-empty">You're all caught up! No notifications.</p>`;
     } else {
@@ -822,8 +973,13 @@ async function toggleNotifications() {
         `).join('');
     }
 
-    await _supabase.from('notifications').update({ is_read: true })
-        .eq('user_id', currentUser.id).eq('is_read', false);
+    try {
+        const { error } = await _supabase.from('notifications').update({ is_read: true })
+            .eq('user_id', currentUser.id).eq('is_read', false);
+        if (error) throw error;
+    } catch (e) {
+        console.error('Mark-as-read failed:', e);
+    }
     loadNotificationCount();
 }
 
@@ -850,14 +1006,21 @@ function toggleTheme() {
     const html  = document.documentElement;
     const next  = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
     html.setAttribute('data-theme', next);
-    localStorage.setItem('enjazTheme', next);
+    try { localStorage.setItem('enjazTheme', next); } catch (e) { /* storage blocked */ }
     updateThemeIcon(next);
     const toggle = document.getElementById('darkModeToggle');
     if (toggle) toggle.checked = next === 'dark';
+    // Chart colours are baked in at draw time, so redraw after a theme switch
+    if (currentUserMeta.role === 'admin' && !document.getElementById('view-admin').classList.contains('hidden')) {
+        loadAdminView();
+    }
 }
 
 function applyStoredTheme() {
-    const saved = localStorage.getItem('enjazTheme') || 'light';
+    let saved = null;
+    try { saved = localStorage.getItem('enjazTheme'); } catch (e) { /* storage blocked */ }
+    // Fall back to the OS preference on first visit
+    if (!saved) saved = window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', saved);
     updateThemeIcon(saved);
 }
@@ -865,12 +1028,15 @@ function applyStoredTheme() {
 function updateThemeIcon(theme) {
     const icon = document.querySelector('#themeToggle i');
     if (icon) icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    document.querySelector('meta[name="theme-color"]')
+        ?.setAttribute('content', theme === 'dark' ? '#0d1117' : '#f1f5f9');
 }
 
 /* ── Sidebar ────────────────────────────────────────────── */
 function toggleSidebar() {
     document.getElementById('sidebar').classList.toggle('collapsed');
-    document.querySelector('.main-area').classList.toggle('sidebar-collapsed');
+    // The grid column width is driven by --sidebar-w on the shell
+    document.getElementById('dashboardScreen').classList.toggle('sidebar-collapsed');
 }
 
 /* ── Toast ──────────────────────────────────────────────── */

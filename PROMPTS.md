@@ -1,12 +1,12 @@
 # PROMPTS.md — AI Prompts & Design Decision Log
-## Enjaz Platform | AI4101 — Generative AI & Vibe Coding
+## Enjaz Platform | Principles of Artificial Intelligence (مبادئ الذكاء الاصطناعي)
 
 ---
 
 ## AI Tool Used
 
 **Tool:** Antigravity (Gemini Advanced + Claude Sonnet)  
-**Why this tool:** A fully integrated vibe coding environment that understands project context, executes code directly, and supports iterative pair programming — removing the friction between idea and working code.
+**Why this tool:** A fully integrated AI-assisted coding environment that understands project context, executes code directly, and supports iterative pair programming — removing the friction between idea and working code.
 
 ---
 
@@ -78,9 +78,9 @@
 
 ---
 
-## Lessons Learned from Vibe Coding
+## Lessons Learned from AI-Assisted Development
 
 1. **Context-rich prompts produce better code** — describing the *why* alongside the *what* consistently produced more appropriate solutions than functional specs alone.
 2. **Incremental refinement is the workflow** — no single prompt produced the final result; improvement happened through iteration.
 3. **Technical constraints belong in the first prompt** — specifying "GitHub Pages compatible, no build step" early prevented wasted effort on framework-based solutions.
-4. **Review generated code** — AI tools occasionally produce code that works but has security implications (e.g., API tokens visible in client-side code). Reviewing every output is part of the vibe coding skill.
+4. **Review generated code** — AI tools occasionally produce code that works but has security implications (e.g., API tokens visible in client-side code). Reviewing every output is part of the AI-assisted development skill.

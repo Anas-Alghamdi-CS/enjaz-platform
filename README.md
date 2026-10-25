@@ -3,94 +3,107 @@
 ![Status](https://img.shields.io/badge/Status-Live-brightgreen)
 ![GitHub Pages](https://img.shields.io/badge/Hosted-GitHub%20Pages-blue)
 ![Supabase](https://img.shields.io/badge/Auth%20%26%20Data-Supabase-3FCF8E)
+![Stack](https://img.shields.io/badge/Stack-Vanilla%20JS%20%7C%20HTML%20%7C%20CSS-f7df1e)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
+
+A role-based academic project management platform where **students** submit project proposals, **supervisors** review them and give feedback, and **admins** oversee the whole platform. Built with zero build steps and deployed as a static site.
 
 ## Live Demo
 
-**[Open Enjaz Platform →](https://Anas-Alghamdi-CS.github.io/enjaz-platform/)**
+**[Open Enjaz Platform →](https://anas-alghamdi-cs.github.io/enjaz-platform/)**
+· [Video walkthrough](https://youtu.be/0gzl_PbU0ic)
 
-YouTube link: [https://youtu.be/0gzl_PbU0ic](https://youtu.be/0gzl_PbU0ic)
 ---
 
 ## Demo Accounts
 
+Created by the one-click seed tool (`seed.html`). All accounts share the same password.
+
 | Role | Email | Password |
 |------|-------|----------|
-| **Admin** | `admin@enjaz.demo` | `Password123!` |
-| **Supervisor (Doctor)** | `dr.khalid.demo@enjaz.com` | `Password123!` |
-| **Student** | `student.ali.demo@enjaz.com` | `Password123!` |
+| Admin | `admin@enjaz.demo` | `Password123!` |
+| Supervisor | `dr.khalid.demo@enjaz.com` | `Password123!` |
+| Supervisor | `dr.sara.demo@enjaz.com` | `Password123!` |
+| Student | `student.ali.demo@enjaz.com` | `Password123!` |
+| Student | `student.nora.demo@enjaz.com` | `Password123!` |
+| Student | `student.fahad.demo@enjaz.com` | `Password123!` |
 
-> You can also register a new account from the Sign Up tab. The seed script (`seed.html`) will automatically upgrade whatever email you log in with to Admin, and any email starting with `dr.` to Supervisor.
-
----
-
-## What It Does
-
-A fully interactive, role-based academic project management platform with real-time collaboration between students, supervisors, and administrators.
+> You can also register your own student or supervisor account from the **Create Account** tab. Admin accounts can only be granted by an existing admin (or by the seed tool).
 
 ---
 
-## Role Capabilities
+## Features
 
-### 🎓 Student
-- Submit a new project proposal (title, description, select supervisor)
-- View all own projects with a **visual status timeline** (Pending → In Progress → Review → Done)
-- Read feedback and **reply in comment threads** per project
-- Receive **real-time notifications** when the supervisor changes status or comments
+| Role | Capabilities |
+|------|--------------|
+| 🎓 **Student** | Submit a proposal and pick a supervisor · track progress on a visual status timeline · discuss in a per-project comment thread · receive notifications |
+| 👨‍🏫 **Supervisor** | See assigned projects with stats · change status from the card or detail modal · comment on projects · **a written reason is mandatory to reject a project** |
+| 🔑 **Admin** | Manage user roles · view and delete any project · status distribution chart · broadcast announcements to all users |
 
-### 👨‍🏫 Supervisor (Doctor)
-- View all projects assigned to them with student details
-- **Change project status** directly from the project card or the detail modal
-- Add feedback comments — with a **mandatory rejection reason** when rejecting
-- Dashboard stats: Total supervised / Pending / Under Review / Completed
-- Receive notifications when students submit new projects
+Cross-cutting behaviour:
 
-### 🔑 Admin
-- **User management table** — view all users, change roles (student ↔ supervisor ↔ admin)
-- **Full project oversight** — see all projects from all users, open any, delete any
-- **Analytics chart** — doughnut chart showing project distribution by status
-- **Broadcast announcements** — send a platform-wide notification to every user at once
+- **Live comment threads and notification badge** via Supabase Realtime, with a 30-second polling fallback.
+- **Rejection rule** enforced in a single code path (`applyStatusChange`): the reason comment is saved first, and the status is only changed if that succeeds.
+- **Error handling:** every Supabase call is wrapped in `try/catch` and reports failures through a toast.
+- **Dark / light mode** persisted in `localStorage`, defaulting to the OS preference and applied before first paint (no flash).
+- **Responsive layout** for mobile, tablet, and desktop; Tajawal + Inter fonts with RTL-ready styles (`dir="rtl"`) and per-element bidi handling for Arabic user content.
 
 ---
 
-## Interactive Features (not just UI)
+## Architecture
 
-| Feature | Description |
-|---------|-------------|
-| Comment threads | Each project has a chat-style comment thread visible to student + supervisor + admin |
-| Status timeline | Visual step indicator per project (Pending → In Progress → Under Review → Approved/Rejected/Completed) |
-| Rejection reason | Doctor must write a comment before the "Rejected" status can be applied |
-| Notification bell | Bell icon with unread badge — clicking shows inbox of all notifications |
-| Supervisor picker | Student selects a supervisor when submitting (not a random assignment) |
-| Announcement broadcast | Admin can send one message that appears in every user's notification inbox |
-| Role management | Admin can change any user's role live from the users table |
-| Dark / Light mode | Persistent theme toggle across sessions |
+```
+┌──────────────────────────── Browser (GitHub Pages) ────────────────────────────┐
+│  index.html ── structure        style.css ── tokens, themes, responsive        │
+│  app.js ── auth · role routing · CRUD · realtime · notifications               │
+└───────────────┬────────────────────────────────────────────────────────────────┘
+                │ supabase-js (CDN)
+┌───────────────▼────────────────────────────────────────────────────────────────┐
+│ Supabase                                                                       │
+│   Auth (email + password)      PostgreSQL + Row-Level Security      Realtime   │
+└────────────────────────────────────────────────────────────────────────────────┘
+```
 
----
+Role flow after sign-in:
 
-## Tech Stack
+```
+login ─► profiles.role ─┬─ student ─► My Projects (submit, timeline, comments)
+                        ├─ doctor  ─► Supervision (stats, status actions, comments)
+                        └─ admin   ─► Admin Panel (users, projects, chart, broadcast)
+```
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Single-file HTML + Vanilla CSS + Vanilla JS |
-| Authentication | Supabase Auth (email/password, no email confirmation) |
-| Database | Supabase PostgreSQL (projects, comments, profiles, notifications) |
-| Charts | Chart.js v4 (CDN) |
-| Hosting | GitHub Pages |
-
----
-
-## Supabase Schema
-
-**4 tables:**
+### Data model
 
 | Table | Purpose |
 |-------|---------|
-| `profiles` | One row per user — name, role, email (auto-created on signup via trigger) |
-| `projects` | Project proposals — linked to student + supervisor by user ID |
-| `comments` | Thread per project — linked to project + author |
-| `notifications` | Inbox per user — created on status change, comment, or announcement |
+| `profiles` | One row per user — `id`, `name`, `email`, `role` (created on signup by a trigger) |
+| `projects` | `title`, `description`, `status`, `student_id`, `doctor_id`, timestamps |
+| `comments` | `project_id`, `author_id`, `body`, `created_at` |
+| `notifications` | `user_id`, `message`, `link_type`, `link_id`, `is_read` |
 
-Row-Level Security ensures students only see their own projects, doctors only see assigned ones, and admins see everything.
+Statuses: `Pending → In Progress → Under Review → Approved / Rejected / Completed`.
+
+Row-Level Security policies restrict students to their own projects, supervisors to assigned ones, and admins to everything. Enable **Realtime** for the `comments` and `notifications` tables to get instant updates.
+
+---
+
+## Run Locally
+
+No build step is required — it is a static site.
+
+```bash
+git clone https://github.com/Anas-Alghamdi-CS/enjaz-platform.git
+cd enjaz-platform
+python -m http.server 8000   # then open http://localhost:8000
+```
+
+To use your own backend, create a Supabase project, create the four tables above with RLS, and replace `SUPABASE_URL` / `SUPABASE_ANON` at the top of `app.js` (only the public anon key belongs in client code). Then open `seed.html` and press the button to create the demo data.
+
+## Deploy to GitHub Pages
+
+1. Push the repository to GitHub.
+2. **Settings → Pages →** Source: *Deploy from a branch*, branch `main`, folder `/ (root)`.
+3. The site is served at `https://<username>.github.io/enjaz-platform/`.
 
 ---
 
@@ -98,40 +111,23 @@ Row-Level Security ensures students only see their own projects, doctors only se
 
 ```
 enjaz-platform/
-├── index.html       ← Complete single-file app (HTML structure)
-├── app.js           ← All application logic (Supabase queries, roles, events)
-├── style.css        ← Complete styling (design tokens, components, responsive)
-├── seed.html        ← One-click tool to create demo accounts & sample data
-├── .nojekyll        ← Disables Jekyll on GitHub Pages
-├── README.md        ← This file
-└── PROMPTS.md       ← AI prompts and design decisions log
+├── index.html    ← App markup (auth, dashboard views, modal)
+├── app.js        ← Application logic (Supabase queries, roles, realtime)
+├── style.css     ← Design tokens, components, dark mode, responsive rules
+├── seed.html     ← One-click demo accounts and sample data
+├── .nojekyll     ← Disables Jekyll on GitHub Pages
+├── README.md
+└── PROMPTS.md    ← AI prompts and design decisions log
 ```
 
 ---
 
-## Assignment Context
+## Academic Context
 
-This is Assignment 3 (A3) for **AI4101 — Generative AI & Vibe Coding** at Umm Al-Qura University.
+Developed as a course assignment for **Principles of Artificial Intelligence (مبادئ الذكاء الاصطناعي)** at Umm Al-Qura University.
 
-| Requirement | Status |
-|-------------|--------|
-| GitHub Pages deployment | ✅ |
-| Supabase Auth (email/password) | ✅ |
-| Supabase Database (real CRUD) | ✅ |
-| Role-based access (student / doctor / admin) | ✅ |
-| Real interactivity between roles | ✅ |
-| Seed data for demonstration | ✅ |
-
----
-
-## Developer
-
-**Student:** Anas Alghamdi
-**Course:** AI4101 — Generative AI & Vibe Coding
-**University:** Umm Al-Qura University
-
----
+**Developer:** Anas Alghamdi
 
 ## License
 
-MIT — Academic use
+MIT

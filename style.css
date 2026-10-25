@@ -57,15 +57,32 @@
 /* ── Reset ──────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html { color-scheme: light; -webkit-text-size-adjust: 100%; }
+[data-theme="dark"] { color-scheme: dark; }
+
 body {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Tajawal', 'Inter', system-ui, sans-serif;
     background: var(--bg);
     color: var(--text-primary);
     min-height: 100vh;
     line-height: 1.5;
     font-size: 15px;
+    overflow-x: hidden;
     transition: background var(--transition), color var(--transition);
 }
+
+/* Smooth theme switching on the main surfaces */
+.card, .sidebar, .top-header, .project-card, .modal-box, .notif-panel,
+.stat-card, input, select, textarea {
+    transition: background-color var(--transition), border-color var(--transition), color var(--transition);
+}
+
+/* User-written text (Arabic or English) follows its own direction */
+.project-card-title, .project-card-desc, .modal-desc-text, .comment-body,
+.notif-msg, textarea, input[type="text"] { unicode-bidi: plaintext; }
+
+img, canvas, table { max-width: 100%; }
+.project-card-title, .project-card-desc, .comment-body, .notif-msg { overflow-wrap: anywhere; }
 
 input, select, textarea, button {
     font-family: inherit;
@@ -307,6 +324,7 @@ input, select, textarea, button {
     transition: width var(--transition);
 }
 
+.dashboard-shell.sidebar-collapsed { --sidebar-w: 64px; }
 .sidebar.collapsed { width: 64px; }
 .sidebar.collapsed .brand-text,
 .sidebar.collapsed .sidebar-user-info,
@@ -398,6 +416,7 @@ input, select, textarea, button {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    min-width: 0; /* let the grid column shrink instead of overflowing */
     overflow: hidden;
 }
 
@@ -1362,6 +1381,29 @@ input, select, textarea, button {
     .content-area { padding: 18px 14px 40px; }
     .top-header   { padding: 0 14px; }
     .stats-row { grid-template-columns: 1fr 1fr; }
-    .notif-panel  { width: 300px; right: -60px; }
+    .notif-panel  { position: fixed; top: calc(var(--header-h) + 8px); left: 12px; right: 12px; width: auto; }
     .toast { left: 16px; right: 16px; bottom: 16px; }
+    .project-card-header { flex-direction: column; }
+    .project-card-footer { flex-wrap: wrap; gap: 8px 14px; }
+    .doctor-actions { flex-wrap: wrap; }
+    .modal-overlay { padding: 8px; }
+    .page-title { font-size: 1.05rem; }
+    .header-user-chip { display: none; }
+}
+
+@media (max-width: 380px) {
+    .stats-row { grid-template-columns: 1fr; }
+}
+
+/* ── RTL support (activated when <html dir="rtl">) ──────── */
+[dir="rtl"] .modal-left { border-right: none; border-left: 1px solid var(--border); }
+[dir="rtl"] .notif-panel { right: auto; left: 0; }
+[dir="rtl"] .notif-badge { right: auto; left: -4px; }
+[dir="rtl"] .project-card-link { margin-left: 0; margin-right: auto; }
+[dir="rtl"] .project-card-footer i,
+[dir="rtl"] .modal-meta i { margin-right: 0; margin-left: 4px; }
+[dir="rtl"] .fa-arrow-right { transform: scaleX(-1); }
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
