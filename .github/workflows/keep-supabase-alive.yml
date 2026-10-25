@@ -1,0 +1,25 @@
+# Sends a tiny request to Supabase every 3 days so the free-tier project is never paused for inactivity.
+# The job fails (and GitHub emails the owner) if Supabase does not answer, e.g. when the project is already paused.
+name: Keep Supabase alive
+
+on:
+  schedule:
+    - cron: "17 4 */3 * *"   # 04:17 UTC on days 1, 4, 7, ... of each month
+  workflow_dispatch:           # allows a manual run from the Actions tab
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Query Supabase
+        env:
+          SUPABASE_URL: https://qyxrfpiyefruokiiwyvf.supabase.co
+          # Public anon key (already shipped in the client code); row-level security still applies
+          SUPABASE_ANON: sb_publishable_NJLGu7AW9GjTdHGkcnhPhA_JO69O-yW
+        run: |
+          status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 --retry 2 -H "apikey: $SUPABASE_ANON" -H "Authorization: Bearer $SUPABASE_ANON" "$SUPABASE_URL/rest/v1/profiles?select=*&limit=1")
+          echo "Supabase responded with HTTP $status"
+          case "$status" in 2*) exit 0 ;; *) exit 1 ;; esac
