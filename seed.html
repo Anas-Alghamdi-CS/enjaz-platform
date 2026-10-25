@@ -60,17 +60,19 @@
 </head>
 <body>
 <div class="container">
-  <h1>🌱 Enjaz Smart Seed Tool (V3)</h1>
-  <p class="subtitle">Guarantees the creation of demo doctors, students, and projects!</p>
+  <h1>🌱 Enjaz Seed Tool</h1>
+  <p class="subtitle">Creates the demo accounts, projects, and comments. Safe to run more than once.</p>
 
   <div class="warning">
-    <strong>⚠️ New Update:</strong>
-    This script will now automatically generate fresh dummy accounts for Doctors and Students if you don't have them in your database. Just login with your Admin account below!
+    <strong>ℹ️ What this does</strong>
+    It creates one admin, two supervisors, and three students (all use the demo password from the README), then
+    submits sample projects as the students and reviews them as the supervisors. Existing demo data is skipped, and
+    real accounts are never touched.
   </div>
 
   <form id="seedForm" class="login-box" onsubmit="event.preventDefault(); startProcess();">
     <div style="text-align: center; color: #94a3b8; font-size: 0.9rem; margin-bottom: 10px;">
-      Just click the button below. No login required!
+      Just click the button below. No login required.
     </div>
     <button type="submit" class="btn-run" id="runBtn">
       🚀 Generate Complete Demo Data
@@ -78,7 +80,7 @@
   </form>
 
   <div class="log-box" id="logBox">
-    <span class="log-info">Fill your login details and press the button...</span>
+    <span class="log-info">Press the button to start...</span>
   </div>
 </div>
 
@@ -127,108 +129,143 @@ function logHead(msg) {
 
 async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+const DEMO_PASSWORD = 'Password123!';
+const DEMO_USERS = [
+  { email: 'admin@enjaz.demo',             name: 'Admin Enjaz',     role: 'admin' },
+  { email: 'dr.khalid.demo@enjaz.com',     name: 'Dr. Khalid',      role: 'doctor' },
+  { email: 'dr.sara.demo@enjaz.com',       name: 'Dr. Sara',        role: 'doctor' },
+  { email: 'student.ali.demo@enjaz.com',   name: 'Ali Al-Ghamdi',   role: 'student' },
+  { email: 'student.nora.demo@enjaz.com',  name: 'Nora Al-Qahtani', role: 'student' },
+  { email: 'student.fahad.demo@enjaz.com', name: 'Fahad Al-Dosari', role: 'student' }
+];
+
+const REJECTION_REASON = 'The scope overlaps with an existing course project. Please narrow it down and resubmit.';
+let seedFinished = false;
+
+/* Sign in as a demo user so every write goes through the same row-level security as the real app */
+async function signInAs(user) {
+  await _s.auth.signOut();
+  const { data, error } = await _s.auth.signInWithPassword({ email: user.email, password: DEMO_PASSWORD });
+  if (error) throw new Error(`Cannot sign in as ${user.email}: ${error.message}`);
+  return data.user;
+}
+
+/* Poll until the signup trigger has created the profile row */
+async function waitForProfile(userId, tries = 10) {
+  for (let i = 0; i < tries; i++) {
+    const { data } = await _s.from('profiles').select('id, name, role').eq('id', userId).maybeSingle();
+    if (data) return data;
+    await sleep(800);
+  }
+  throw new Error('Profile row was not created by the database trigger.');
+}
+
+async function ensureAccount(u) {
+  const { data, error } = await _s.auth.signUp({
+    email: u.email,
+    password: DEMO_PASSWORD,
+    options: { data: { name: u.name, role: u.role } }
+  });
+  const exists = (error && /already/i.test(error.message)) || data?.user?.identities?.length === 0;
+  if (exists) { log(`• ${u.email} already exists`, 'info'); return; }
+  if (error)  throw new Error(`Failed to create ${u.email}: ${error.message}`);
+  log(`✓ Created ${u.role}: ${u.email}`, 'ok');
+}
+
 async function startProcess() {
+  if (seedFinished) { location.href = 'index.html'; return; }
+
   const btn = document.getElementById('runBtn');
   btn.disabled = true;
   document.getElementById('logBox').innerHTML = '';
 
-  const DUMMY_USERS = [
-    { email: `admin@enjaz.demo`, name: 'Admin Enjaz', role: 'admin' },
-    { email: `dr.khalid.demo@enjaz.com`, name: 'Dr. Khalid', role: 'doctor' },
-    { email: `dr.sara.demo@enjaz.com`, name: 'Dr. Sara', role: 'doctor' },
-    { email: `student.ali.demo@enjaz.com`, name: 'Ali Al-Ghamdi', role: 'student' },
-    { email: `student.nora.demo@enjaz.com`, name: 'Nora Al-Qahtani', role: 'student' },
-    { email: `student.fahad.demo@enjaz.com`, name: 'Fahad Al-Dosari', role: 'student' }
-  ];
+  try {
+    // ── 1. Accounts ──
+    logHead('1. Creating demo accounts');
+    for (const u of DEMO_USERS) await ensureAccount(u);
 
-  // ── 1. Create fresh dummy users to guarantee we have them ──
-  logHead('1. Creating Fresh Demo Accounts');
-  for (const u of DUMMY_USERS) {
-    const { error } = await _s.auth.signUp({
-      email: u.email,
-      password: 'Password123!',
-      options: { data: { name: u.name, role: u.role } }
-    });
-    if (error) {
-      log(`Failed to create ${u.email}: ${error.message}`, 'err');
-    } else {
-      log(`✓ Created ${u.role}: ${u.email}`, 'ok');
+    // ── 2. Profiles and roles ──
+    logHead('2. Checking profiles and roles');
+    const ids = {};
+    for (const u of DEMO_USERS) {
+      const authUser = await signInAs(u);
+      let profile    = await waitForProfile(authUser.id);
+      if (profile.role !== u.role) {
+        await _s.from('profiles').update({ role: u.role }).eq('id', authUser.id);
+        profile = await waitForProfile(authUser.id);
+      }
+      if (profile.role !== u.role) {
+        throw new Error(`${u.email} has role "${profile.role}" instead of "${u.role}". Fix it in the Supabase table editor and run again.`);
+      }
+      ids[u.email] = authUser.id;
+      log(`✓ ${u.email} → ${profile.role}`, 'ok');
     }
-  }
 
-  log('Waiting 3 seconds for database triggers...', 'info');
-  await sleep(3000);
+    const doctors  = DEMO_USERS.filter(u => u.role === 'doctor');
+    const students = DEMO_USERS.filter(u => u.role === 'student');
 
-  // ── 2. Setup Roles ──
-  logHead('2. Setting up Roles');
-  const { data: profiles, error: pErr } = await _s.from('profiles').select('*');
-  
-  if (pErr || !profiles) {
-    log(`✗ Failed to fetch profiles. Error: ${pErr?.message}`, 'err');
-    btn.disabled = false;
-    return;
-  }
+    // ── 3. Projects (students submit them as "Pending", exactly like the app) ──
+    logHead('3. Submitting demo projects');
+    const created = [];   // only newly created projects get a status and comments, so reruns add nothing
+    for (const student of students) {
+      await signInAs(student);
+      for (let i = 0; i < PROJECTS_TEMPLATE.length; i++) {
+        if (students[i % students.length] !== student) continue;
+        const pt     = PROJECTS_TEMPLATE[i];
+        const doctor = doctors[i % doctors.length];
 
-  // Make sure admin is set
-  const adminProfile = profiles.find(p => p.email === 'admin@enjaz.demo');
-  if (adminProfile && adminProfile.role !== 'admin') {
-    await _s.from('profiles').update({ role: 'admin' }).eq('id', adminProfile.id);
-    log(`✓ Upgraded Admin role`, 'ok');
-  }
+        const { data: existing, error: findErr } = await _s.from('projects')
+          .select('id').eq('student_id', ids[student.email]).eq('title', pt.title).maybeSingle();
+        if (findErr) throw new Error(`Cannot check "${pt.title}": ${findErr.message}`);
+        if (existing) { log(`• "${pt.title}" already exists`, 'info'); continue; }
 
-  // ── 3. Collect Doctors and Students ──
-  const { data: finalProfiles } = await _s.from('profiles').select('*');
-  const doctors  = finalProfiles.filter(p => p.role === 'doctor');
-  const students = finalProfiles.filter(p => p.role === 'student');
+        const { data: proj, error } = await _s.from('projects').insert({
+          title: pt.title, description: pt.description, status: 'Pending',
+          student_id: ids[student.email], doctor_id: ids[doctor.email]
+        }).select().single();
+        if (error) throw new Error(`Failed to insert "${pt.title}": ${error.message}`);
 
-  if (doctors.length === 0 || students.length === 0) {
-    log('✗ Still missing doctors or students. Something is wrong with the DB triggers.', 'err');
-    btn.disabled = false;
-    return;
-  }
-
-  log(`Found ${doctors.length} Doctors and ${students.length} Students.`, 'info');
-
-  // ── 5. Create Projects ──
-  logHead('4. Generating Demo Projects');
-  const insertedProjects = [];
-  for (let i = 0; i < PROJECTS_TEMPLATE.length; i++) {
-    const pt      = PROJECTS_TEMPLATE[i];
-    const student = students[i % students.length];
-    const doctor  = doctors[i % doctors.length];
-
-    const { data: proj, error } = await _s.from('projects').insert({
-      title:       pt.title,
-      description: pt.description,
-      status:      pt.status,
-      student_id:  student.id,
-      doctor_id:   doctor.id
-    }).select().single();
-
-    if (error) {
-      log(`✗ Failed Project "${pt.title}" — ${error.message}`, 'err');
-    } else {
-      insertedProjects.push({ ...proj, student, doctor });
-      log(`✓ "${pt.title}" → By: ${student.name} | Sup: ${doctor.name}`, 'ok');
+        created.push({ index: i, id: proj.id, doctor, template: pt });
+        log(`✓ "${pt.title}" → ${student.name} / ${doctor.name}`, 'ok');
+      }
     }
-  }
 
-  // ── 6. Add Comments ──
-  logHead('5. Adding Sample Comments');
-  for (const proj of insertedProjects.slice(0, 5)) {
-    const comment = SAMPLE_COMMENTS[Math.floor(Math.random() * SAMPLE_COMMENTS.length)];
-    await _s.from('comments').insert({
-      project_id: proj.id,
-      author_id:  proj.doctor.id,
-      body:       comment
-    });
-    log(`✓ Comment added by ${proj.doctor.name} on "${proj.title.substring(0,20)}…"`, 'ok');
-  }
+    // ── 4. Supervisors review: set status and leave feedback ──
+    logHead('4. Supervisor reviews and comments');
+    for (const doctor of doctors) {
+      const mine = created.filter(p => p.doctor === doctor);
+      if (!mine.length) continue;
+      await signInAs(doctor);
+      for (const p of mine) {
+        if (p.template.status !== 'Pending') {
+          const { error } = await _s.from('projects').update({ status: p.template.status }).eq('id', p.id);
+          if (error) throw new Error(`Failed to set status of "${p.template.title}": ${error.message}`);
+        }
+        // A rejected project always carries a reason, matching the platform rule
+        const body = p.template.status === 'Rejected'
+          ? `⚠️ Rejection Reason: ${REJECTION_REASON}`
+          : (p.index < 5 ? SAMPLE_COMMENTS[p.index % SAMPLE_COMMENTS.length] : null);
+        if (body) {
+          const { error } = await _s.from('comments').insert({ project_id: p.id, author_id: ids[doctor.email], body });
+          if (error) throw new Error(`Failed to comment on "${p.template.title}": ${error.message}`);
+        }
+        log(`✓ ${doctor.name}: "${p.template.title.substring(0, 28)}…" → ${p.template.status}`, 'ok');
+      }
+    }
 
-  // ── 7. Done ──
-  logHead('Seed Complete 🎉');
-  log('You can now open the main Enjaz platform and enjoy the full experience!', 'ok');
-  btn.textContent = '✅ All Done! Go to Platform';
+    await _s.auth.signOut();
+    logHead(created.length ? 'Seed complete 🎉' : 'Nothing to do — demo data already exists ✅');
+    log('Demo password for all accounts: ' + DEMO_PASSWORD, 'info');
+    seedFinished = true;
+    btn.textContent = '✅ Done! Open the platform';
+  } catch (err) {
+    console.error(err);
+    log(`✗ ${err.message}`, 'err');
+    log('You can safely run the tool again; existing data is skipped.', 'info');
+    await _s.auth.signOut().catch(() => {});
+  } finally {
+    btn.disabled = false;
+  }
 }
 </script>
 </body>
